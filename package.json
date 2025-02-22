@@ -1,0 +1,28 @@
+{
+  "name": "super-site",
+  "version": "1.0.0",
+  "main": "main.js",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "start": "node server.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/xaxaxa1000/super-site.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/xaxaxa1000/super-site/issues"
+  },
+  "homepage": "https://github.com/xaxaxa1000/super-site#readme",
+  "description": "",
+  "devDependencies": {
+    "@vitejs/plugin-vue": "^5.2.1"
+  },
+  "dependencies": {
+    "bootstrap": "^5.3.3"
+  }
+}

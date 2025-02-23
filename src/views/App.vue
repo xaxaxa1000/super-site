@@ -10,11 +10,17 @@
       <b-navbar-nav class="ml-auto mr-auto input_size">
         <b-form-input size="sm" class="mr-sm-2" placeholder="Поиск..." />
       </b-navbar-nav>
-
-      <b-navbar-nav class="ml-auto">
-        <b-avatar text="Ю" variant="light" class="mr-2"></b-avatar>
-        <span class="align-middle">Юзер</span>
-      </b-navbar-nav>
+      
+      <div @click="goToLogin" style="cursor: pointer">
+       <b-navbar-nav class="ml-auto">
+        <b-avatar
+         text="Ю"
+         variant="light"
+         class="mr-2"
+        
+        ></b-avatar>
+       </b-navbar-nav>
+      </div>
     </b-navbar>
 
     <!-- Основной контент -->
@@ -47,8 +53,17 @@
 
 <script>
 export default {
-  name: 'App'
+  name: 'App',
+
+methods: {
+  goToLogin() {
+    //this.$router.push('/login'); // Программный переход
+    window.location.href = '/login.html';
+  }
+}
 };
+
+
 </script>
 
 <style>

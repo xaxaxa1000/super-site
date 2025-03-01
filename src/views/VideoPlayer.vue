@@ -25,8 +25,17 @@
             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
             allowfullscreen
         ></iframe>
+
       </div>
       <h2 class="video-title">{{ currentVideo.title }}</h2>
+
+      <div class="video-info">
+
+        <p class="video-description" v-if="currentVideo.description">
+          {{ currentVideo.description }}
+        </p>
+        <p v-else class="no-description">No description available</p>
+      </div>
     </div>
   </div>
 </template>
@@ -219,5 +228,17 @@ fetchVideo()
 @keyframes spin {
   0% { transform: rotate(0deg); }
   100% { transform: rotate(360deg); }
+}
+.video-info {
+  padding: 20px;
+  background: #999;
+  border-radius: 0 0 8px 8px;
+}
+
+.video-description {
+  margin-top: 12px;
+  color: #333;
+  line-height: 1.5;
+  font-size: 14px;
 }
 </style>

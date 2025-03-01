@@ -14,9 +14,10 @@ const routes = [
     component: VideoList
   },
   {
-    path: '/video/:id',
-    component: VideoPlayer,
-    props: true
+    path: '/video/:id', // URL будет выглядеть как /video/zlBWZEJ_nh8
+    name: 'VideoPlayer', // Это имя должно совпадать с тем, что в router-link
+    component: VideoPlayer, // Убедитесь, что компонент существует
+    props: true // Если хотите передавать id как prop
   },
   //{
   //  path: '/login',

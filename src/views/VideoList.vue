@@ -28,38 +28,93 @@ const videos = ref([])
 const loading = ref(true)
 const error = ref(null)
 
-// Получение ID видео из URL YouTube
+// Получение ID видео из URL YouTube или Rutube
 const getVideoId = (url) => {
-  const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/
-  const match = url.match(regExp)
-  return (match && match[2].length === 11) ? match[2] : null
+  if (!url) return null;
+
+  // YouTube
+  const youtubeRegExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
+  const youtubeMatch = url.match(youtubeRegExp);
+  if (youtubeMatch && youtubeMatch[2].length === 11) {
+    console.log('getVideoId result for YouTube:', url, ':', youtubeMatch[2]);
+    return { platform: 'youtube', id: youtubeMatch[2] };
+  }
+
+  // Rutube
+  const rutubeRegExp = /rutube\.ru\/video\/([a-f0-9]{32})/;
+  const rutubeMatch = url.match(rutubeRegExp);
+  if (rutubeMatch) {
+    console.log('getVideoId result for Rutube:', url, ':', rutubeMatch[1]);
+    return { platform: 'rutube', id: rutubeMatch[1] };
+  }
+
+  console.log('getVideoId result for unknown platform:', url, ': null');
+  return null;
 }
 
 // Получение URL превью
 const getThumbnailUrl = (url) => {
-  const videoId = getVideoId(url)
-  return `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`
+  console.log('getThumbnailUrl called with:', url);
+
+  const videoInfo = getVideoId(url);
+  if (!videoInfo) return '/placeholder.jpg'; // Fallback если ID не найден
+
+  if (videoInfo.platform === 'youtube') {
+    const thumbnailUrl = `https://img.youtube.com/vi/${videoInfo.id}/hqdefault.jpg`;
+    console.log('Extracted YouTube thumbnail URL:', thumbnailUrl);
+    return thumbnailUrl;
+  } else if (videoInfo.platform === 'rutube') {
+    const thumbnailUrl = `https://rutube.ru/api/video/${videoInfo.id}/thumbnail/?redirect=1`;
+    console.log('Extracted Rutube thumbnail URL:', thumbnailUrl);
+    return thumbnailUrl;
+  }
+
+  console.log('Unknown platform, returning placeholder');
+  return '/placeholder.jpg';
 }
 
-// Загрузка данных с сервера
 const fetchVideos = async () => {
   try {
-    const response = await fetch('http://localhost:3000/api/videos')
-    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`)
-    videos.value = await response.json()
-    error.value = null
+    console.log('Sending request to:', 'http://localhost:3000/api/videos');
+
+    const response = await fetch('http://localhost:3000/api/videos');
+
+    // Логируем полную информацию о response
+    console.log('Raw response:', response);
+
+    if (!response.ok) {
+      const errorMessage = `HTTP error! Status: ${response.status}`;
+      console.error('Response not OK:', errorMessage);
+      throw new Error(errorMessage);
+    }
+
+    const data = await response.json();
+
+    // Логируем полученные данные
+    console.log('Received data:', data);
+
+    // Добавляем URL превью к каждому видео
+    videos.value = data.map(video => ({
+      ...video,
+      thumbnailUrl: getThumbnailUrl(video.url)
+    }));
+
+    error.value = null;
+
   } catch (err) {
-    console.error('Error fetching videos:', err)
-    error.value = err.message
+    console.error('Error details:', err);
+    error.value = err.message;
+
   } finally {
-    loading.value = false
+    console.log('Loading completed');
+    loading.value = false;
   }
 }
 
 // Загрузка данных при монтировании компонента
 onMounted(() => {
-  fetchVideos()
-})
+  fetchVideos();
+});
 </script>
 
 <style>

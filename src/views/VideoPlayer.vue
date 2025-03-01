@@ -30,13 +30,19 @@
       <h2 class="video-title">{{ currentVideo.title }}</h2>
 
       <div class="video-info">
-
         <p class="video-description" v-if="currentVideo.description">
           {{ currentVideo.description }}
         </p>
         <p v-else class="no-description">No description available</p>
       </div>
+      <button
+          @click="goToTest"
+          class="test-btn"
+      >
+        Пройти тестирование
+      </button>
     </div>
+
   </div>
 </template>
 

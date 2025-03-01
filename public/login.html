@@ -1,21 +1,26 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Вход</title>
-  <link rel="stylesheet" href="/styles.css"> <!-- Подключите стили, если нужно -->
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Вход</title>
+    <link rel="stylesheet" href="/styles.css">
 </head>
 <body>
-  <div id="login-page">
+<div id="login-page">
     <h1>Страница входа</h1>
-    <form>
-      <label for="login">Логин:</label>
-      <input type="text" id="login" name="login" required>
-      <label for="password">Пароль:</label>
-      <input type="password" id="password" name="password" required>
-      <button type="submit">Войти</button>
+    <form method="POST" action="/login">
+        <label for="login">Логин:</label>
+        <input type="text" id="login" name="login" required>
+
+        <label for="password">Пароль:</label>
+        <input type="password" id="password" name="password" required>
+
+        <button type="submit">Войти</button>
     </form>
-  </div>
+    <% if (error) { %>
+    <div class="error"><%= error %></div>
+    <% } %>
+</div>
 </body>
 </html>

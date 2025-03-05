@@ -1,70 +1,67 @@
 <template>
   <div class="video-player">
-    <div class="back-button">
-      <button @click="$router.back()" class="back-btn">
-        ← Back to Gallery
+    <!-- Кнопка назад -->
+    <div class="navigation">
+      <button @click="$router.back()" class="back-button">
+        ← Назад в галерею
       </button>
     </div>
 
-    <div v-if="loading" class="loading-container">
-      <div class="spinner"></div>
+    <!-- Состояние загрузки -->
+    <div v-if="loading" class="loader-container">
+      <div class="loader"></div>
     </div>
 
+    <!-- Ошибка загрузки -->
     <div v-else-if="error" class="error-container">
-      <p class="error-message">{{ error }}</p>
-      <button @click="handleRetry" class="retry-btn">Try Again</button>
+      <p class="error-text">{{ error }}</p>
+      <button @click="handleRetry" class="retry-button">Повторить</button>
     </div>
 
-    <div v-else class="player-container">
-      <div class="video-wrapper">
+    <!-- Основной контент -->
+    <div v-else class="content">
+      <!-- Видео плеер -->
+      <div class="player-wrapper">
         <iframe
             class="video-iframe"
             :src="embedUrl"
-            title="YouTube video player"
-            frameborder="0"
             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
             allowfullscreen
         ></iframe>
-
       </div>
-      <h2 class="video-title">{{ currentVideo.title }}</h2>
 
-      <div class="video-info">
-        <p class="video-description" v-if="currentVideo.description">
-          {{ currentVideo.description }}
-        </p>
-        <p v-else class="no-description">No description available</p>
+      <!-- Информация о видео -->
+      <div class="video-details">
+        <h2 class="title">{{ currentVideo.title }}</h2>
+        <p class="description">{{ currentVideo.description || 'Описание отсутствует' }}</p>
       </div>
-      <button
-          @click="goToTest"
-          class="test-btn"
-      >
-        Пройти тестирование
-      </button>
+
+      <!-- Кнопка тестирования -->
+      <div class="action-buttons">
+        <button @click="goToTest" class="test-button">Пройти тестирование</button>
+      </div>
     </div>
-
   </div>
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
 const route = useRoute()
 const router = useRouter()
 
-const currentVideo = ref(null)
+// Реактивные данные
+const currentVideo = ref({})
 const loading = ref(true)
 const error = ref(null)
 
-// Утилита для получения ID видео из ссылки
+// Получение ID видео из URL
 const getVideoId = (url) => {
-  if (!url) return null
-
   // YouTube
-  const youtubeRegex = /(?:youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]{11})/
-  const youtubeMatch = url.match(youtubeRegex)
-  if (youtubeMatch) return youtubeMatch[1]
+  const ytRegex = /^.*(youtu.be\/|v\/|e\/|u\/\w+\/|embed\/|v=)([^#\&\?]*).*/
+  const ytMatch = url.match(ytRegex)
+  if (ytMatch && ytMatch[2].length === 11) return ytMatch[2]
 
   // Rutube
   const rutubeRegex = /rutube\.ru\/video\/([a-f0-9]{32})/
@@ -74,144 +71,133 @@ const getVideoId = (url) => {
   return null
 }
 
-// Утилита для определения платформы видео
-const getPlatform = (url) => {
-  if (!url) return null
-  if (/youtube\.com|youtu\.be/.test(url)) return 'youtube'
-  if (/rutube\.ru/.test(url)) return 'rutube'
-  return null
-}
+// Формируем URL для встраивания
+const embedUrl = computed(() => {
+  if (!currentVideo.value.url) return ''
 
+  const platform = currentVideo.value.url.includes('youtube')
+      ? 'youtube'
+      : 'rutube'
+  const videoId = getVideoId(currentVideo.value.url)
+
+  return platform === 'youtube'
+      ? `https://www.youtube.com/embed/${videoId}?autoplay=0`
+      : `https://rutube.ru/play/embed/${videoId}`
+})
+
+// Загрузка данных
 const fetchVideo = async () => {
   try {
     const response = await fetch(`http://localhost:3000/api/videos/${route.params.id}`)
 
-    // Проверка статуса ответа
     if (!response.ok) {
-      throw new Error(`HTTP error! Status: ${response.status}`)
+      throw new Error(`Ошибка ${response.status}: ${response.statusText}`)
     }
 
-    // Проверка типа контента
-    const contentType = response.headers.get('content-type')
-    if (!contentType || !contentType.includes('application/json')) {
-      const text = await response.text() // Получаем полный ответ
-      console.error('Server returned non-JSON response:', text)
-      throw new Error('Invalid response format: expected JSON')
-    }
-
-    // Парсинг JSON
     currentVideo.value = await response.json()
     error.value = null
+
   } catch (err) {
-    console.error('Error loading video:', err)
-    error.value = err.message || 'Failed to load video data'
+    console.error('Ошибка загрузки:', err)
+    error.value = `Не удалось загрузить видео: ${err.message}`
+
   } finally {
     loading.value = false
   }
 }
 
-// Вычисляем URL для встраивания видео
-const embedUrl = computed(() => {
-  if (!currentVideo.value?.url) return ''
-
-  const platform = getPlatform(currentVideo.value.url)
-  const videoId = getVideoId(currentVideo.value.url)
-
-  if (platform === 'youtube') {
-    return `https://www.youtube.com/embed/${videoId}?autoplay=0`
-  } else if (platform === 'rutube') {
-    return `https://rutube.ru/play/embed/${videoId}`
-  }
-
-  return ''
-})
-
-// Вычисляем URL для превью видео
-const thumbnailUrl = computed(() => {
-  if (!currentVideo.value?.url) return ''
-
-  const platform = getPlatform(currentVideo.value.url)
-  const videoId = getVideoId(currentVideo.value.url)
-
-  if (platform === 'youtube') {
-    return `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`
-  } else if (platform === 'rutube') {
-    return `https://rutube.ru/api/video/${videoId}/thumbnail/?redirect=1`
-  }
-
-  return ''
-})
-
+// Перезагрузка данных
 const handleRetry = () => {
   error.value = null
   loading.value = true
   fetchVideo()
 }
 
-fetchVideo()
+// Переход к тестированию
+const goToTest = () => {
+  router.push({ name: 'test', params: { id: currentVideo.value.id } })
+}
+
+// Загружаем при монтировании
+onMounted(() => {
+  fetchVideo()
+})
 </script>
-
-
 
 <style scoped>
 .video-player {
   max-width: 1200px;
   margin: 0 auto;
   padding: 2rem;
+  min-height: 80vh;
 }
 
-.back-btn {
-  padding: 0.8rem 1.5rem;
+.navigation {
+  margin-bottom: 20px;
+}
+
+.back-button {
   background: #f5f5f5;
   border: 1px solid #ddd;
-  border-radius: 6px;
+  padding: 12px 24px;
+  border-radius: 8px;
   cursor: pointer;
   transition: all 0.2s;
+  font-weight: 500;
 }
 
-.back-btn:hover {
+.back-button:hover {
   background: #e0e0e0;
+  transform: translateX(-5px);
 }
 
-.loading-container {
+.loader-container {
   display: flex;
   justify-content: center;
-  padding: 2rem;
+  padding: 40px;
 }
 
-.spinner {
+.loader {
   border: 4px solid #f3f3f3;
   border-top: 4px solid #3498db;
   border-radius: 50%;
-  width: 40px;
-  height: 40px;
+  width: 50px;
+  height: 50px;
   animation: spin 1s linear infinite;
 }
 
 .error-container {
   text-align: center;
-  padding: 2rem;
+  padding: 40px;
+  background: #ffebee;
+  border-radius: 8px;
 }
 
-.error-message {
-  color: #ff4444;
-  margin-bottom: 1rem;
+.error-text {
+  color: #c62828;
+  font-size: 1.2em;
+  margin-bottom: 15px;
 }
 
-.retry-btn {
-  padding: 0.5rem 1rem;
-  background: #ff6b6b;
+.retry-button {
+  background: #ff5252;
   color: white;
+  padding: 10px 20px;
   border: none;
-  border-radius: 4px;
+  border-radius: 5px;
   cursor: pointer;
+  transition: background 0.2s;
 }
 
-.video-wrapper {
+.retry-button:hover {
+  background: #e53935;
+}
+
+.player-wrapper {
   position: relative;
-  padding-bottom: 56.25%; /* 16:9 */
+  padding-bottom: 56.25%;
   height: 0;
-  margin: 1rem 0;
+  margin: 20px 0;
 }
 
 .video-iframe {
@@ -221,30 +207,48 @@ fetchVideo()
   width: 100%;
   height: 100%;
   border: none;
-  border-radius: 8px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.1);
 }
 
-.video-title {
-  font-size: 1.5rem;
-  color: #333;
-  margin: 1rem 0;
+.video-details {
+  padding: 20px;
+  background: #f8f9fa;
+  border-radius: 8px;
+  margin-top: 20px;
+}
+
+.title {
+  color: #2c3e50;
+  margin-bottom: 15px;
+}
+
+.description {
+  color: #555;
+  line-height: 1.6;
+}
+
+.action-buttons {
+  margin-top: 25px;
+}
+
+.test-button {
+  background: #4CAF50;
+  color: white;
+  padding: 12px 24px;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.2s;
+  font-weight: 500;
+}
+
+.test-button:hover {
+  background: #45a049;
 }
 
 @keyframes spin {
   0% { transform: rotate(0deg); }
   100% { transform: rotate(360deg); }
-}
-.video-info {
-  padding: 20px;
-  background: #999;
-  border-radius: 0 0 8px 8px;
-}
-
-.video-description {
-  margin-top: 12px;
-  color: #333;
-  line-height: 1.5;
-  font-size: 14px;
 }
 </style>

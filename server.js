@@ -4,16 +4,18 @@ const morgan = require('morgan');
 const mysql = require('mysql2/promise');
 const bcrypt = require('bcrypt'); // Для хеширования паролей
 const jwt = require('jsonwebtoken'); // Для работы с JWT
+const nodemailer = require('nodemailer');
+const uuidv4 = require('uuid').v4; // Исправленный импорт
 require('dotenv').config(); // Для загрузки переменных окружения
 
 const app = express();
 
 // Настройка подключения к MySQL
 const pool = mysql.createPool({
-  host: 'localhost',
-  user: 'root', // Ваш пользователь MySQL
-  password: '', // Ваш пароль
-  database: 'super_site',
+  host: process.env.DB_HOST,
+  user: process.env.DB_USER, // Ваш пользователь MySQL
+  password: process.env.DB_PASSWORD, // Ваш пароль
+  database: process.env.DB_NAME,
   waitForConnections: true,
   connectionLimit: 10,
   queueLimit: 0
@@ -21,7 +23,7 @@ const pool = mysql.createPool({
 
 // Настройка CORS и middleware остаются без изменений
 app.use(cors({
-  origin: 'http://localhost:5173',
+  origin: process.env.SER_FRONTEND,
   methods: ['GET', 'POST', 'PUT', 'DELETE'],
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
@@ -139,6 +141,102 @@ app.post('/api/login', async (req, res) => {
   }
 });
 
+
+// Настройка Nodemailer (пример для Gmail)
+const transporter = nodemailer.createTransport({
+  service: 'yandex',
+  host: 'smtp.yandex.ru',
+  port: 465,
+  secure: true,
+  auth: {
+    user: process.env.MAIL_USER,
+    pass: process.env.MAIL_PASSWORD // Используйте environment variables для безопасности!
+  }
+});
+
+// Маршрут для запроса сброса пароля
+// Добавьте async перед (req, res)
+app.post('/api/reset-password', async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    // Проверка существования пользователя
+    const [user] = await pool.query('SELECT id FROM users WHERE email = ?', [email]);
+    if (user.length === 0) {
+      return res.status(404).send('Пользователь не найден');
+    }
+
+    // Генерация токена
+    const token = uuidv4(); // Теперь работает!
+    const expiresAt = new Date(Date.now() + 3600000); // 1 час
+
+    // Сохранение токена в БД
+    await pool.query('INSERT INTO password_reset_tokens (user_id, token, expires_at) VALUES (?, ?, ?)', [
+      user[0].id,
+      token,
+      expiresAt
+    ]);
+
+    // Отправка письма
+    const mailOptions = {
+      from: process.env.MAIL_USER,
+      to: email,
+      subject: 'Сброс пароля',
+      text: `Перейдите по ссылке: ${process.env.SER_FRONTEND}/reset?token=${token}`
+    };
+
+    transporter.sendMail(mailOptions, (error) => {
+      if (error) {
+        console.error(error);
+        res.status(500).send('Ошибка отправки письма');
+      } else {
+        res.status(200).send('Письмо отправлено');
+      }
+    });
+
+  } catch (error) {
+    console.error('Reset password error:', error);
+    res.status(500).send('Ошибка сервера');
+  }
+});
+
+// Маршрут подтверждения сброса пароля
+app.post('/api/reset-password/confirm', async (req, res) => {
+  const { token, newPassword } = req.body;
+
+  try {
+    // 1. Найти токен в БД
+    const [tokens] = await pool.query('SELECT * FROM password_reset_tokens WHERE token = ?', [token]);
+    if (tokens.length === 0) {
+      return res.status(400).json({ message: 'Неверный или просроченный токен' });
+    }
+
+    const resetToken = tokens[0];
+    const now = new Date();
+
+    // 2. Проверить срок действия токена (например, 1 час)
+    if (now > resetToken.expires_at) {
+      return res.status(400).json({ message: 'Срок действия токена истек' });
+    }
+
+    // 3. Хешировать новый пароль
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+    // 4. Обновить пароль пользователя
+    await pool.query('UPDATE users SET password_hash = ? WHERE id = ?', [
+      hashedPassword,
+      resetToken.user_id
+    ]);
+
+    // 5. Удалить использованный токен
+    await pool.query('DELETE FROM password_reset_tokens WHERE token = ?', [token]);
+
+    res.status(200).json({ message: 'Пароль успешно изменен' });
+  } catch (error) {
+    console.error('Reset password error:', error);
+    res.status(500).json({ message: 'Ошибка сервера' });
+  }
+});
 
 // Обработка 404
 app.use((req, res) => {

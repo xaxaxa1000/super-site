@@ -4,16 +4,17 @@ const morgan = require('morgan');
 const mysql = require('mysql2/promise');
 const bcrypt = require('bcrypt'); // Для хеширования паролей
 const jwt = require('jsonwebtoken'); // Для работы с JWT
+const nodemailer = require('nodemailer');
 require('dotenv').config(); // Для загрузки переменных окружения
 
 const app = express();
 
 // Настройка подключения к MySQL
 const pool = mysql.createPool({
-  host: 'localhost',
-  user: 'root', // Ваш пользователь MySQL
-  password: '', // Ваш пароль
-  database: 'super_site',
+  host: process.env.DB_HOST,
+  user: process.env.DB_USER, // Ваш пользователь MySQL
+  password: process.env.DB_PASSWORD, // Ваш пароль
+  database: process.env.DB_NAME,
   waitForConnections: true,
   connectionLimit: 10,
   queueLimit: 0
@@ -21,7 +22,7 @@ const pool = mysql.createPool({
 
 // Настройка CORS и middleware остаются без изменений
 app.use(cors({
-  origin: 'http://localhost:5173',
+  origin: process.env.SER_FRONTEND,
   methods: ['GET', 'POST', 'PUT', 'DELETE'],
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
@@ -138,6 +139,47 @@ app.post('/api/login', async (req, res) => {
     res.status(500).json({ message: 'Internal server error' });
   }
 });
+
+
+// Настройка Nodemailer (пример для Gmail)
+const transporter = nodemailer.createTransport({
+  service: 'yandex',
+  host: 'smtp.yandex.ru',
+  port: 465,
+  secure: true,
+  auth: {
+    user: process.env.MAIL_USER,
+    pass: process.env.MAIL_PASSWORD // Используйте environment variables для безопасности!
+  }
+});
+
+// Маршрут для запроса сброса пароля
+app.post('/api/reset-password', (req, res) => {
+  const { email } = req.body;
+
+  // Генерация токена (на практике используйте библиотеку, например, uuid)
+  const token = Math.random().toString(36).substring(7);
+
+  // TODO: Сохранить токен в БД вместе с email и временем создания
+
+  // Отправка письма
+  const mailOptions = {
+    from: process.env.MAIL_USER,
+    to: email,
+    subject: 'Сброс пароля',
+    text: `Перейдите по ссылке для сброса пароля: ${process.env.SER_FRONTEND}//reset?token=${token}`
+  };
+
+  transporter.sendMail(mailOptions, (error) => {
+    if (error) {
+      console.error(error);
+      res.status(500).send('Ошибка отправки письма.');
+    } else {
+      res.status(200).send('Письмо отправлено.');
+    }
+  });
+});
+
 
 
 // Обработка 404

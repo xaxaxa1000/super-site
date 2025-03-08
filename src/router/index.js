@@ -7,6 +7,7 @@ import VideoGallery from '@/views/VideoGallery.vue';
 import VideoPlayer from '@/views/VideoPlayer.vue';
 import ForgotPassword from "@/views/ForgotPassword.vue";
 import ResetPassword from "@/views/ResetPassword.vue";
+import Register from "@/views/Register.vue";
 
 
 const routes = [
@@ -42,6 +43,11 @@ const routes = [
     path: '/reset',
     component: ResetPassword,
     name: 'resetPassword'
+  },
+  {
+    path: '/register',
+    component: Register,
+    name: 'register'
   }
 ];
 

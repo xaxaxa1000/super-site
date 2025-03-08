@@ -21,9 +21,21 @@ const pool = mysql.createPool({
   queueLimit: 0
 });
 
+
+const allowedOrigins = [
+  'http://localhost:5173',
+  'http://25.54.39.23:5173', // Добавьте ваш IP
+];
+
 // Настройка CORS и middleware остаются без изменений
 app.use(cors({
-  origin: process.env.SER_FRONTEND,
+  origin: (origin, callback) => {
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
   methods: ['GET', 'POST', 'PUT', 'DELETE'],
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
@@ -238,6 +250,48 @@ app.post('/api/reset-password/confirm', async (req, res) => {
   }
 });
 
+app.post('/api/register', async (req, res) => {
+  try {
+    const { firstName, lastName, email, userType, group, password } = req.body;
+
+    // Проверка обязательных полей
+    if (!firstName || !lastName || !email || !userType || !password) {
+      return res.status(400).json({ message: 'Заполните все обязательные поля' });
+    }
+
+    // Проверка допустимых типов пользователя
+    const validUserTypes = ['student', 'applicant', 'teacher'];
+    if (!validUserTypes.includes(userType)) {
+      return res.status(400).json({ message: 'Недопустимый тип пользователя' });
+    }
+
+    // Проверка группы для студентов
+    if (userType === 'student' && !group) {
+      return res.status(400).json({ message: 'Группа обязательна для студентов' });
+    }
+
+    // Проверка существования пользователя
+    const [existingUser] = await pool.query('SELECT id FROM users WHERE email = ?', [email]);
+    if (existingUser.length > 0) {
+      return res.status(400).json({ message: 'Пользователь с таким email уже существует' });
+    }
+
+    // Хеширование пароля
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    // Сохранение в БД
+    await pool.query(
+        'INSERT INTO users (first_name, last_name, email, user_type, study_group, password_hash) VALUES (?, ?, ?, ?, ?, ?)',
+        [firstName, lastName, email, userType, group || null, hashedPassword]
+    );
+
+    res.status(200).json({ message: 'Пользователь успешно зарегистрирован' });
+  } catch (error) {
+    console.error('Registration error:', error);
+    res.status(500).json({ message: 'Ошибка сервера' });
+  }
+});
+
 // Обработка 404
 app.use((req, res) => {
   console.warn(`[${new Date().toISOString()}] 404 Not Found: ${req.method} ${req.originalUrl}`);
@@ -255,7 +309,7 @@ app.use((err, req, res, next) => {
 
 // Запуск сервера
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
+app.listen(PORT,'0.0.0.0', () => {
   console.log('--------------------------------------------------');
   console.log(`[${new Date().toISOString()}] Server started`);
   console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);

@@ -1,7 +1,11 @@
 const express = require('express');
 const cors = require('cors');
 const morgan = require('morgan');
-const mysql = require('mysql2/promise'); // Импортируем mysql2
+const mysql = require('mysql2/promise');
+const bcrypt = require('bcrypt'); // Для хеширования паролей
+const jwt = require('jsonwebtoken'); // Для работы с JWT
+require('dotenv').config(); // Для загрузки переменных окружения
+
 const app = express();
 
 // Настройка подключения к MySQL
@@ -18,9 +22,8 @@ const pool = mysql.createPool({
 // Настройка CORS и middleware остаются без изменений
 app.use(cors({
   origin: 'http://localhost:5173',
-  methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
-  exposedHeaders: ['Content-Length', 'X-Request-Id']
+  methods: ['GET', 'POST', 'PUT', 'DELETE'],
+  allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
 app.use(morgan('dev'));
@@ -89,6 +92,53 @@ app.get('/', (req, res) => {
     ]
   });
 });
+
+// Маршрут аутентификации
+app.post('/api/login', async (req, res) => {
+  try {
+    const { email, password } = req.body;
+
+    // Проверяем обязательные поля
+    if (!email || !password) {
+      return res.status(400).json({ message: 'Email and password are required' });
+    }
+
+    // Ищем пользователя в БД
+    const [users] = await pool.query('SELECT * FROM users WHERE email = ?', [email]);
+    const user = users[0];
+
+    if (!user) {
+      return res.status(401).json({ message: 'Invalid credentials' });
+    }
+
+    // Сравниваем хеши паролей
+    const passwordMatch = await bcrypt.compare(password, user.password_hash);
+    if (!passwordMatch) {
+      return res.status(401).json({ message: 'Invalid credentials' });
+    }
+
+    // Генерируем JWT-токен
+    const token = jwt.sign(
+        { userId: user.id, email: user.email },
+        process.env.JWT_SECRET,
+        { expiresIn: '1h' }
+    );
+
+    res.json({
+      token,
+      user: {
+        id: user.id,
+        email: user.email,
+        name: user.name
+      }
+    });
+
+  } catch (error) {
+    console.error('Login error:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+});
+
 
 // Обработка 404
 app.use((req, res) => {

@@ -88,7 +88,7 @@ const embedUrl = computed(() => {
 // Загрузка данных
 const fetchVideo = async () => {
   try {
-    const response = await fetch(`http://localhost:3000/api/videos/${route.params.id}`)
+    const response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/videos/${route.params.id}`)
 
     if (!response.ok) {
       throw new Error(`Ошибка ${response.status}: ${response.statusText}`)

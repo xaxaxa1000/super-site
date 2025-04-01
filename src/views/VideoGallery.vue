@@ -79,7 +79,7 @@ const getThumbnail = (url) => {
 // Загрузка данных
 const fetchVideos = async () => {
   try {
-    const response = await fetch('http://localhost:3000/api/videos')
+    const response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/videos`)
     if (!response.ok) throw new Error('Ошибка сети')
 
     const data = await response.json()

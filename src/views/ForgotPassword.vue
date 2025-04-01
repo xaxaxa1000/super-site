@@ -19,7 +19,7 @@ export default {
   methods: {
     async sendResetEmail() {
       try {
-        const response = await fetch('http://localhost:3000/api/reset-password', {
+        const response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/reset-password`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ email: this.email })

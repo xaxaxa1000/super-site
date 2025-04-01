@@ -21,6 +21,22 @@ const pool = mysql.createPool({
   queueLimit: 0
 });
 
+// Определение middleware для проверки JWT
+const authenticateToken = async (req, res, next) => {
+  const token = req.headers['authorization']?.split(' ')[1];
+  if (!token) {
+    return res.status(401).json({ message: 'Нет токена авторизации' });
+  }
+
+  try {
+    // Валидация токена
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    req.userId = decoded.userId; // Добавляем userId в объект запроса
+    next();
+  } catch (error) {
+    res.status(403).json({ message: 'Неверный или просроченный токен' });
+  }
+};
 
 const allowedOrigins = [
   'http://localhost:5173',
@@ -291,6 +307,37 @@ app.post('/api/register', async (req, res) => {
     res.status(500).json({ message: 'Ошибка сервера' });
   }
 });
+
+// Исправленный маршрут /api/user/me
+app.get('/api/user/me', authenticateToken, async (req, res) => { // ✅ Добавлен middleware
+  try {
+    // Теперь req.userId доступен из middleware
+    const [user] = await pool.query(`
+      SELECT 
+        id, 
+        first_name, 
+        last_name, 
+        email, 
+        avatar_url, 
+        created_at, 
+        study_group, 
+        user_type 
+      FROM users 
+      WHERE id = ?`,
+        [req.userId] // ✅ Используем userId из middleware
+    );
+
+    if (!user[0]) {
+      return res.status(404).json({ message: 'Пользователь не найден' });
+    }
+
+    res.json(user[0]);
+  } catch (error) {
+    console.error('User fetch error:', error.message);
+    res.status(500).json({ message: 'Ошибка сервера' });
+  }
+});
+
 
 // Обработка 404
 app.use((req, res) => {

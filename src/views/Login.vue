@@ -2,7 +2,15 @@
   <div class="viewport">
     <div class="form-container">
       <div class="panel panel-default">
-        <div class="panel-heading">
+        <div class="panel-heading position-relative">
+          <!-- Кнопка "Назад" с абсолютным позиционированием -->
+          <button
+              @click="$router.back()"
+              class="back-btn"
+          >
+            Назад
+          </button>
+          <!-- Заголовок по центру -->
           <h3 class="panel-title text-center">Вход</h3>
         </div>
         <div class="panel-body">
@@ -76,22 +84,19 @@ export default {
       },
       showPassword: false,
       isLoading: false
-    }
+    };
   },
   methods: {
     async handleLogin() {
       try {
         this.isLoading = true;
-
         const response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/login`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json'
           },
           body: JSON.stringify({
-            // Исправлено с this.email на this.formData.email
             email: this.formData.email,
-            // Исправлено с this.password на this.formData.password
             password: this.formData.password
           })
         });
@@ -104,17 +109,15 @@ export default {
         const data = await response.json();
         localStorage.setItem('authToken', data.token);
         this.$router.push('/home');
-
       } catch (error) {
         alert(error.message);
         console.error('Ошибка входа:', error);
-
       } finally {
         this.isLoading = false;
       }
     }
   }
-}
+};
 </script>
 
 <style scoped>
@@ -127,7 +130,7 @@ export default {
 .form-container {
   position: absolute;
   left: 50%;
-  top: 20%; /* Форма будет на 40% от верха */
+  top: 20%;
   transform: translate(-50%, -50%);
   width: 100%;
   max-width: 400px;
@@ -136,13 +139,30 @@ export default {
 
 .panel-default {
   border-radius: 8px;
-  box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+}
+
+.panel-heading {
+  padding: 15px;
 }
 
 .panel-title {
   font-size: 24px;
   font-weight: 500;
   color: #333;
+}
+
+.btn-secondary {
+  background-color: #6c757d;
+  color: white;
+  border: none;
+  padding: 5px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.btn-secondary:hover {
+  background-color: #5a6268;
 }
 
 .form-control {
@@ -177,5 +197,15 @@ export default {
 .btn-primary:hover {
   background-color: #286090;
   border-color: #204d74;
+}
+
+@media (max-width: 576px) {
+  .panel-heading .d-flex {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .panel-title {
+    margin-top: 10px;
+  }
 }
 </style>

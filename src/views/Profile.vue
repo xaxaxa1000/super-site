@@ -98,21 +98,28 @@ export default {
       }
 
       const response = await fetch(
-        `${import.meta.env.VITE_BACKEND_URL}/api/user/me`,
-        {
-          headers: {
-            'Authorization': `Bearer ${token}`
+          `${import.meta.env.VITE_BACKEND_URL}/api/user/me`,
+          {
+            headers: {
+              'Authorization': `Bearer ${token}`
+            }
           }
-        }
       );
 
       if (!response.ok) {
-        throw new Error(`Ошибка ${response.status}: ${await response.text()}`);
+        const text = await response.text();
+        const error = new Error(text);
+        error.status = response.status;
+        throw error;
       }
 
       this.user = await response.json();
     } catch (error) {
       this.error = error.message;
+      if (error.status === 403) {
+        localStorage.removeItem('authToken');
+        this.$router.push('/login');
+      }
       console.error('Ошибка получения данных:', error);
     } finally {
       this.loading = false;

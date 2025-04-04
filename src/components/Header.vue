@@ -41,11 +41,27 @@
 </template>
 
 <script>
+function parseJwt(token) {
+  const base64Url = token.split('.')[1];
+  const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+  const jsonPayload = decodeURIComponent(atob(base64)
+      .split('')
+      .map(c => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
+      .join(''));
+  return JSON.parse(jsonPayload);
+}
+
 export default {
   computed: {
-    // Проверяем наличие токена в localStorage
     isLoggedIn() {
-      return localStorage.getItem('authToken') !== null;
+      const token = localStorage.getItem('authToken');
+      if (!token) return false;
+      try {
+        const decoded = parseJwt(token);
+        return decoded.exp * 1000 > Date.now();
+      } catch (e) {
+        return false;
+      }
     }
   }
 };

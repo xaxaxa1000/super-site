@@ -21,7 +21,6 @@ const pool = mysql.createPool({
   queueLimit: 0
 });
 
-// Определение middleware для проверки JWT
 const authenticateToken = async (req, res, next) => {
   const token = req.headers['authorization']?.split(' ')[1];
   if (!token) {
@@ -29,18 +28,23 @@ const authenticateToken = async (req, res, next) => {
   }
 
   try {
-    // Валидация токена
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    req.userId = decoded.userId; // Добавляем userId в объект запроса
+    // Проверка наличия userId
+    if (!decoded.userId) {
+      return res.status(403).json({ message: 'Токен не содержит userId' });
+    }
+    req.userId = decoded.userId;
     next();
   } catch (error) {
+    console.error('JWT error:', error);
     res.status(403).json({ message: 'Неверный или просроченный токен' });
   }
 };
-
 const allowedOrigins = [
   'http://localhost:5173',
   'http://25.54.39.23:5173', // Добавьте ваш IP
+  'http://localhost:3000', // Бэкенд,
+  'http://25.54.39.23:3000' // Бэкенд
 ];
 
 // Настройка CORS и middleware остаются без изменений
@@ -338,6 +342,90 @@ app.get('/api/user/me', authenticateToken, async (req, res) => { // ✅ Доба
   }
 });
 
+app.get('/api/tests/:id', async (req, res) => {
+  try {
+    const testId = req.params.id;
+    const [test] = await pool.query('SELECT * FROM tests WHERE id = ?', [testId]);
+    if (!test[0]) {
+      return res.status(404).json({ message: 'Тест не найден' });
+    }
+
+    const [questions] = await pool.query(`
+    SELECT 
+      q.id,
+      q.question_text,
+      q.question_type,
+      GROUP_CONCAT(
+        JSON_OBJECT(
+          'id', a.id,
+          'text', a.answer_text,
+          'is_correct', a.is_correct
+        ) 
+        SEPARATOR ','
+      ) AS answers_json
+    FROM questions q
+    JOIN answers a ON q.id = a.question_id
+    JOIN test_questions tq ON q.id = tq.question_id
+    WHERE tq.test_id = ?
+    GROUP BY q.id, q.question_text, q.question_type
+  `, [testId]);
+
+// Преобразуем JSON-строку в массив
+    questions.forEach(question => {
+      try {
+        question.answers = JSON.parse(`[${question.answers_json}]`);
+      } catch (error) {
+        // Если что-то пошло не так, инициализируем пустым массивом
+        question.answers = [];
+        console.error('Ошибка при парсинге ответов для вопроса:', question.id, error);
+      }
+      // Удаляем временное поле answers_json
+      delete question.answers_json;
+    });
+
+
+    res.json({
+      test: test[0],
+      questions: questions
+    });
+  } catch (error) {
+    console.error('Ошибка:', error);
+    res.status(500).json({ message: 'Ошибка сервера', error: error.message });
+  }
+});
+
+app.post('/api/test-sessions', authenticateToken, async (req, res) => {
+  try {
+    const { test_id, answers, score } = req.body;
+    const userId = req.userId; // Из middleware
+
+    await pool.query(`
+      INSERT INTO test_sessions (user_id, test_id, total_score, answers_data)
+      VALUES (?, ?, ?, ?)
+    `, [userId, test_id, score, JSON.stringify(answers)]);
+
+    res.status(201).json({ message: 'Тест сохранен' });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.get('/api/video-tests/:videoId', async (req, res) => {
+  try {
+    const videoId = req.params.videoId;
+    const [test] = await pool.query(`
+      SELECT t.* 
+      FROM tests t 
+      JOIN video_tests vt ON t.id = vt.test_id 
+      WHERE vt.video_id = ?
+    `, [videoId]);
+
+    if (test.length === 0) return res.status(404).json({ message: 'Тест не найден' });
+    res.json(test[0]);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
 
 // Обработка 404
 app.use((req, res) => {

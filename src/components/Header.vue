@@ -24,8 +24,15 @@
 
     <!-- Правая часть: Кнопка пользователя -->
     <div class="header-right">
-      <router-link to="/login" class="user-button">
-        <svg viewBox="0 0 24 24" class="user-icon">
+      <router-link
+          :to="isLoggedIn ? '/profile' : '/login'"
+          class="user-button"
+      >
+        <svg
+            viewBox="0 0 24 24"
+            class="user-icon"
+            :class="{ 'active': isLoggedIn }"
+        >
           <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>
         </svg>
       </router-link>
@@ -33,7 +40,38 @@
   </header>
 </template>
 
+<script>
+function parseJwt(token) {
+  const base64Url = token.split('.')[1];
+  const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+  const jsonPayload = decodeURIComponent(atob(base64)
+      .split('')
+      .map(c => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
+      .join(''));
+  return JSON.parse(jsonPayload);
+}
+
+export default {
+  computed: {
+    isLoggedIn() {
+      const token = localStorage.getItem('authToken');
+      if (!token) return false;
+      try {
+        const decoded = parseJwt(token);
+        return decoded.exp * 1000 > Date.now();
+      } catch (e) {
+        return false;
+      }
+    }
+  }
+};
+</script>
+
 <style scoped>
+.user-icon.active {
+  fill: #007bff;
+  transition: fill 0.3s;
+}
 .youtube-header {
   display: flex;
   align-items: center;

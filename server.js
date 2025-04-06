@@ -350,39 +350,33 @@ app.get('/api/tests/:id', async (req, res) => {
       return res.status(404).json({ message: 'Тест не найден' });
     }
 
+    // Выбираем случайные вопросы из пула
     const [questions] = await pool.query(`
-    SELECT 
-      q.id,
-      q.question_text,
-      q.question_type,
-      GROUP_CONCAT(
-        JSON_OBJECT(
-          'id', a.id,
-          'text', a.answer_text,
-          'is_correct', a.is_correct
-        ) 
-        SEPARATOR ','
-      ) AS answers_json
-    FROM questions q
-    JOIN answers a ON q.id = a.question_id
-    JOIN test_questions tq ON q.id = tq.question_id
-    WHERE tq.test_id = ?
-    GROUP BY q.id, q.question_text, q.question_type
-  `, [testId]);
+      SELECT
+        q.id,
+        q.question_text,
+        q.question_type,
+        GROUP_CONCAT(
+            JSON_OBJECT(
+                'id', a.id,
+                'text', a.answer_text,
+                'is_correct', a.is_correct
+            )
+              SEPARATOR ','
+        ) AS answers_json
+      FROM questions q
+             JOIN answers a ON q.id = a.question_id
+             JOIN test_questions tq ON q.id = tq.question_id
+      WHERE tq.test_id = ?
+      GROUP BY q.id, q.question_text, q.question_type
+      ORDER BY RAND() -- Случайная сортировка
+      LIMIT ? -- Ограничиваем количество
+    `, [testId, test[0].num_questions]);
 
-// Преобразуем JSON-строку в массив
+    // Преобразуем JSON-строку в массив
     questions.forEach(question => {
-      try {
-        question.answers = JSON.parse(`[${question.answers_json}]`);
-      } catch (error) {
-        // Если что-то пошло не так, инициализируем пустым массивом
-        question.answers = [];
-        console.error('Ошибка при парсинге ответов для вопроса:', question.id, error);
-      }
-      // Удаляем временное поле answers_json
-      delete question.answers_json;
+      question.answers = JSON.parse(`[${question.answers_json}]`);
     });
-
 
     res.json({
       test: test[0],
@@ -396,13 +390,33 @@ app.get('/api/tests/:id', async (req, res) => {
 
 app.post('/api/test-sessions', authenticateToken, async (req, res) => {
   try {
-    const { test_id, answers, score } = req.body;
-    const userId = req.userId; // Из middleware
+    const {
+      test_id,
+      answers,
+      total_score,
+      correct_answers,
+      total_questions
+    } = req.body;
+    const userId = req.userId;
 
     await pool.query(`
-      INSERT INTO test_sessions (user_id, test_id, total_score, answers_data)
-      VALUES (?, ?, ?, ?)
-    `, [userId, test_id, score, JSON.stringify(answers)]);
+      INSERT INTO test_sessions (
+        user_id,
+        test_id,
+        total_score,
+        correct_answers,
+        total_questions,
+        answers_data
+      )
+      VALUES (?, ?, ?, ?, ?, ?)
+    `, [
+      userId,
+      test_id,
+      total_score,
+      correct_answers,
+      total_questions,
+      JSON.stringify(answers)
+    ]);
 
     res.status(201).json({ message: 'Тест сохранен' });
   } catch (error) {

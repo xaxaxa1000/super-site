@@ -132,7 +132,8 @@ export default {
         const token = localStorage.getItem('authToken');
         if (!token) throw new Error('Вы не авторизованы');
 
-        // Добавляем полный URL к API
+        const scoreData = this.calculateScore();
+
         const response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/test-sessions`, {
           method: 'POST',
           headers: {
@@ -142,11 +143,12 @@ export default {
           body: JSON.stringify({
             test_id: this.testId,
             answers: this.answers,
-            score: this.calculateScore()
+            total_score: scoreData.percentage,
+            correct_answers: scoreData.correct,
+            total_questions: scoreData.total
           })
         });
 
-        // Добавляем проверку пустого ответа
         const text = await response.text();
         const data = text ? JSON.parse(text) : {};
 
@@ -162,12 +164,19 @@ export default {
     },
     calculateScore() {
       let correct = 0;
+      const totalQuestions = this.questions.length; // Общее количество вопросов
       this.questions.forEach(q => {
-        const userAnswer = this.answers[q.id];
-        const correctAnswer = q.answers.find(a => a.is_correct)?.id;
-        if (userAnswer === correctAnswer) correct++;
+        const userAnswer = this.answers[q.id]; // Ответ пользователя
+        const correctAnswer = q.answers.find(a => a.is_correct)?.id; // Правильный ответ
+        if (userAnswer === correctAnswer) {
+          correct++;
+        }
       });
-      return (correct / this.questions.length) * 100;
+      return {
+        correct,
+        total: totalQuestions,
+        percentage: (correct / totalQuestions) * 100
+      };
     }
   }
 };

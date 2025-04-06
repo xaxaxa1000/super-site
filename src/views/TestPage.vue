@@ -21,9 +21,6 @@
       <div class="timer" v-if="test.time_limit">
         Осталось времени: {{ timeLeft }} секунд
       </div>
-      <div class="questions-count">
-        Всего вопросов: {{ test.num_questions }}
-      </div>
     </div>
 
     <!-- Текущий вопрос (только если тест не завершен) -->

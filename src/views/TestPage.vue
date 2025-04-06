@@ -1,7 +1,7 @@
 <template>
   <div class="test-container">
-    <!-- Навигация по вопросам -->
-    <div class="question-navigation">
+    <!-- Навигация по вопросам (только если результаты не показаны) -->
+    <div class="question-navigation" v-if="!showResults">
       <button
           v-for="(question, index) in questions"
           :key="question.id"
@@ -16,13 +16,18 @@
       </button>
     </div>
 
-    <!-- Таймер -->
-    <div class="timer" v-if="test.time_limit">
-      Осталось времени: {{ timeLeft }} секунд
+    <!-- Таймер и информация (только если результаты не показаны) -->
+    <div class="test-info" v-if="!showResults">
+      <div class="timer" v-if="test.time_limit">
+        Осталось времени: {{ timeLeft }} секунд
+      </div>
+      <div class="questions-count">
+        Всего вопросов: {{ test.num_questions }}
+      </div>
     </div>
 
-    <!-- Текущий вопрос -->
-    <div v-if="currentQuestion" class="current-question">
+    <!-- Текущий вопрос (только если тест не завершен) -->
+    <div v-if="currentQuestion && !showResults" class="current-question">
       <h2>{{ currentQuestion.question_text }}</h2>
       <div
           v-for="answer in currentQuestion.answers"
@@ -41,22 +46,59 @@
       </button>
     </div>
 
-    <!-- Кнопка завершения теста -->
+    <!-- Кнопка завершения теста (только если тест не завершен) -->
     <button
-        v-if="!isTimerEnded"
+        v-if="!isTimerEnded && !isTestCompleted && !showResults"
         @click="finishTest"
         class="finish-btn"
     >
       Завершить тест
     </button>
+
+    <!-- Блок с результатами -->
+    <div v-if="showResults" class="results-container">
+      <div class="result-card">
+        <h2>Результаты теста:</h2>
+        <p>Ваш балл: <strong>{{ testResults.score }}%</strong></p>
+        <p>Правильных ответов: <strong>{{ testResults.correct }}</strong> из {{ testResults.total }}</p>
+
+        <!-- Правильные ответы -->
+        <div v-if="testResults.correctAnswers.length > 0" class="correct-section">
+          <h3>Правильно:</h3>
+          <div v-for="q in testResults.correctAnswers" :key="q.id" class="answer-item">
+            <div class="question-block">
+              <p class="question-text">{{ q.question_text }}</p>
+              <p class="user-answer">Ваш ответ: {{ getAnswerText(q.id) }}</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Неправильные ответы -->
+        <div v-if="testResults.incorrectAnswers.length > 0" class="incorrect-section">
+          <h3>Неправильно:</h3>
+          <div v-for="q in testResults.incorrectAnswers" :key="q.id" class="answer-item">
+            <div class="question-block">
+              <p class="question-text">{{ q.question_text }}</p>
+              <p class="user-answer">Ваш ответ: {{ getAnswerText(q.id) }}</p>
+              <p class="incorrect-message">Ответ неверный</p>
+            </div>
+          </div>
+        </div>
+
+        <button @click="goToHomePage" class="return-btn">
+          Вернуться на главную
+        </button>
+      </div>
+    </div>
   </div>
 </template>
+
 
 <script>
 export default {
   data() {
     return {
-      testId: this.$route.params.testId, // Теперь берем из URL
+      testId: this.$route.params.testId,
       test: {},
       questions: [],
       currentQuestionIndex: 0,
@@ -65,17 +107,23 @@ export default {
       timeLeft: 0,
       isSubmitted: false,
       isTimerEnded: false,
-      answers: {}
+      answers: {},
+      testResults: null,
+      showResults: false,
+      correctAnswers: [],
+      incorrectAnswers: []
     };
   },
   mounted() {
-    console.log('testId:', this.testId); // Проверьте ID в консоли
     this.fetchTest();
     this.startTimer();
   },
   computed: {
     currentQuestion() {
       return this.questions[this.currentQuestionIndex];
+    },
+    isTestCompleted() {
+      return this.currentQuestionIndex >= this.questions.length;
     }
   },
   methods: {
@@ -91,7 +139,7 @@ export default {
           ...q,
           answered: false
         }));
-        this.timeLeft = this.test.time_limit * 60;
+        this.timeLeft = this.test.time_limit * 60; // Переводим в секунды
       } catch (error) {
         alert('Не удалось загрузить тест. Проверьте ID теста.');
         console.error('Ошибка:', error);
@@ -121,12 +169,16 @@ export default {
       this.currentQuestionIndex++;
       this.selectedAnswer = null;
       this.isSubmitted = false;
+
+      // Если все вопросы пройдены, завершаем тест
+      if (this.isTestCompleted) {
+        this.finishTest();
+      }
     },
     async finishTest() {
       this.isTimerEnded = true;
       await this.submitTest();
     },
-    // В TestPage.vue
     async submitTest() {
       try {
         const token = localStorage.getItem('authToken');
@@ -156,7 +208,29 @@ export default {
           throw new Error(data.message || `Ошибка ${response.status}`);
         }
 
-        alert('Тест сохранен!');
+        // Собираем правильные/неправильные ответы
+        this.correctAnswers = [];
+        this.incorrectAnswers = [];
+        this.questions.forEach(q => {
+          const userAnswerId = this.answers[q.id];
+          const correctAnswer = q.answers.find(a => a.is_correct)?.id;
+          if (userAnswerId === correctAnswer) {
+            this.correctAnswers.push(q);
+          } else {
+            this.incorrectAnswers.push(q);
+          }
+        });
+
+        // Сохраняем результаты
+        this.testResults = {
+          score: scoreData.percentage,
+          correct: scoreData.correct,
+          total: scoreData.total,
+          correctAnswers: this.correctAnswers,
+          incorrectAnswers: this.incorrectAnswers
+        };
+        this.showResults = true;
+        clearInterval(this.timer);
       } catch (error) {
         console.error('Полная ошибка:', error);
         alert(`Ошибка сохранения: ${error.message}`);
@@ -164,11 +238,11 @@ export default {
     },
     calculateScore() {
       let correct = 0;
-      const totalQuestions = this.questions.length; // Общее количество вопросов
+      const totalQuestions = this.questions.length;
       this.questions.forEach(q => {
-        const userAnswer = this.answers[q.id]; // Ответ пользователя
-        const correctAnswer = q.answers.find(a => a.is_correct)?.id; // Правильный ответ
-        if (userAnswer === correctAnswer) {
+        const userAnswerId = this.answers[q.id];
+        const correctAnswerId = q.answers.find(a => a.is_correct)?.id;
+        if (userAnswerId === correctAnswerId) {
           correct++;
         }
       });
@@ -177,12 +251,89 @@ export default {
         total: totalQuestions,
         percentage: (correct / totalQuestions) * 100
       };
+    },
+    getAnswerText(questionId) {
+      const answerId = this.answers[questionId];
+      const selectedAnswer = this.questions.find(q => q.id === questionId).answers.find(a => a.id === answerId);
+      return selectedAnswer ? selectedAnswer.text : 'Не выбрано';
+    },
+    getCorrectAnswer(questionId) {
+      const correctAnswer = this.questions.find(q => q.id === questionId).answers.find(a => a.is_correct);
+      return correctAnswer ? correctAnswer.text : 'Ответ не найден';
+    },
+    goToHomePage() {
+      this.$router.push('/');
     }
   }
 };
 </script>
 
 <style>
+/* Стили для блока с результатами */
+.results-container {
+  margin-top: 40px;
+  text-align: center;
+}
+
+.result-card {
+  background: white;
+  padding: 20px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.correct-section {
+  background: #e8f5e9;
+  border-left: 4px solid #4CAF50;
+  margin: 20px 0;
+  padding: 15px;
+}
+
+.incorrect-section {
+  background: #fbe9e7;
+  border-left: 4px solid #ff5252;
+  margin: 20px 0;
+  padding: 15px;
+}
+
+.question-block {
+  border: 1px solid #ddd;
+  padding: 15px;
+  margin-bottom: 15px;
+  border-radius: 5px;
+  background: #f8f8f8;
+}
+
+.question-text {
+  font-weight: bold;
+  margin-bottom: 5px;
+}
+
+.user-answer {
+  margin-bottom: 5px;
+}
+
+.incorrect-message {
+  color: #ff5252;
+  font-weight: bold;
+}
+
+.return-btn {
+  margin-top: 20px;
+  padding: 12px 24px;
+  background: #4CAF50;
+  color: white;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+.return-btn:hover {
+  background: #45a049;
+}
+
 /* Стили навигации */
 .question-navigation {
   display: flex;
@@ -249,5 +400,9 @@ export default {
   border-radius: 5px;
   cursor: pointer;
 }
-</style>
 
+.finish-btn:disabled {
+  background: #ccc;
+  cursor: not-allowed;
+}
+</style>

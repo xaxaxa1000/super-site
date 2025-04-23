@@ -36,9 +36,36 @@
         <p class="description">{{ currentVideo.description || 'Описание отсутствует' }}</p>
       </div>
 
+      <!-- Информация о тесте -->
+      <div v-if="test" class="test-info">
+        <h3>Тест для данного видео:</h3>
+        <p>Время: {{ test.time_limit }} минут</p>
+        <p>Вопросов: {{ test.num_questions }}</p>
+      </div>
+
       <!-- Кнопка тестирования -->
       <div class="action-buttons">
-        <button @click="goToTest" class="test-button">Пройти тестирование</button>
+        <button
+            @click="showConfirmation = true"
+            :disabled="!test"
+            class="test-button"
+            :class="{ 'button-disabled': !test }"
+        >
+          {{ test ? 'Начать тест' : 'Тест не доступен' }}
+        </button>
+      </div>
+
+      <!-- Модальное окно подтверждения -->
+      <div v-if="showConfirmation" class="confirmation-modal">
+        <div class="modal-content">
+          <h3>Вы готовы начать тест?</h3>
+          <p>Время: {{ test.time_limit }} мин</p>
+          <p>Вопросов: {{ test.num_questions }}</p>
+          <div class="modal-buttons">
+            <button @click="showConfirmation = false" class="cancel-button">Отмена</button>
+            <button @click="startTest" class="confirm-button">Начать</button>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -55,6 +82,8 @@ const router = useRouter()
 const currentVideo = ref({})
 const loading = ref(true)
 const error = ref(null)
+const test = ref(null)
+const showConfirmation = ref(false)
 
 // Получение ID видео из URL
 const getVideoId = (url) => {
@@ -95,6 +124,7 @@ const fetchVideo = async () => {
     }
 
     currentVideo.value = await response.json()
+    await fetchTestForVideo(currentVideo.value.id) // Новая функция
     error.value = null
 
   } catch (err) {
@@ -104,6 +134,28 @@ const fetchVideo = async () => {
   } finally {
     loading.value = false
   }
+}
+
+// Загрузка теста для видео
+const fetchTestForVideo = async (videoId) => {
+  try {
+    const response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/video-tests/${videoId}`)
+    if (response.ok) {
+      test.value = await response.json()
+    }
+  } catch (err) {
+    console.error('Ошибка загрузки теста:', err)
+  }
+}
+// Начать тест
+const startTest = () => {
+  if (test.value) {
+    router.push({
+      name: 'test',
+      params: { testId: test.value.id.toString() } // Убедитесь, что ID передается как строка
+    });
+  }
+  showConfirmation.value = false;
 }
 
 // Перезагрузка данных
@@ -125,6 +177,96 @@ onMounted(() => {
 </script>
 
 <style scoped>
+
+/* Добавляем стили для модального окна */
+.confirmation-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.modal-content {
+  background: white;
+  padding: 2rem;
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+  text-align: center;
+}
+
+.modal-buttons {
+  margin-top: 20px;
+}
+
+.cancel-button {
+  background: #e7e7e7;
+  color: #555;
+  padding: 10px 20px;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  margin-right: 15px;
+  transition: all 0.2s;
+}
+
+.cancel-button:hover {
+  background: #d9d9d9;
+}
+
+.confirm-button {
+  background: #4CAF50;
+  color: white;
+  padding: 10px 20px;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.confirm-button:hover {
+  background: #45a049;
+}
+
+/* Добавляем стили для кнопки */
+.test-button.button-disabled {
+  background: #e74c3c;
+  cursor: not-allowed;
+}
+
+.test-button.button-disabled:hover {
+  background: #e74c3c;
+}
+
+/* Стили для информации о тесте */
+.test-info {
+  background: #f8f9fa;
+  border-radius: 8px;
+  padding: 15px;
+  margin: 20px 0;
+}
+
+/* Обновленный стиль для кнопки */
+.test-button {
+  background: #4CAF50;
+  color: white;
+  padding: 12px 24px;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-weight: 500;
+}
+
+.test-button:hover {
+  background: #45a049;
+  transform: scale(1.03);
+}
+
 .video-player {
   max-width: 1200px;
   margin: 0 auto;

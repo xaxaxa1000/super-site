@@ -9,6 +9,7 @@ import ForgotPassword from "@/views/ForgotPassword.vue";
 import ResetPassword from "@/views/ResetPassword.vue";
 import Register from "@/views/Register.vue";
 import Profile from "@/views/Profile.vue";
+import TestPage from "@/views/TestPage.vue";
 
 
 const routes = [
@@ -55,6 +56,13 @@ const routes = [
     name: 'Profile',
     component: Profile,
     meta: { requiresAuth: true } // Добавьте защиту для роута
+  },
+  {
+    path: '/test/:testId',
+    name: 'test',
+    component: TestPage,
+    props: true,
+    //meta: { requiresAuth: true } // Добавьте защиту для роута
   }
 ];
 

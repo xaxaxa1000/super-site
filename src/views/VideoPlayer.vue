@@ -102,9 +102,10 @@ const currentVideo = ref({});
 const loading = ref(true);
 const error = ref(null);
 const test = ref(null);
-const labTask = ref(null);
+//const labTask = ref(null);
 const labAvailable = ref(false);
 const showConfirmation = ref(false);
+const lab = ref(null);
 
 // Получение ID видео из URL
 const getVideoId = (url) => {
@@ -173,8 +174,7 @@ const fetchLabWorkForVideo = async (videoId) => {
     );
     if (response.ok) {
       const labData = await response.json();
-      //console.log(labData.id);
-      labTask.value = labData.id;
+      lab.value = labData; // Сохраняем все данные лабораторной
       labAvailable.value = true;
     }
   } catch (err) {
@@ -195,10 +195,10 @@ const startTest = () => {
 
 // Перейти к лабораторной работе
 const goToLabWork = () => {
-  if (labAvailable.value && labTask.value) {
+  if (labAvailable.value && lab.value) {
     router.push({
-      name: 'LabTask', // Используйте имя из router/index.js
-      params: { taskId: labTask.value } // Передайте ID задания
+      name: 'LabTask',
+      params: { labId: lab.value.lab_id } // Передаем lab_id из данных лабораторной
     });
   }
 };

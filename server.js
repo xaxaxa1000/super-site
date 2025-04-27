@@ -441,51 +441,22 @@ app.get('/api/video-tests/:videoId', async (req, res) => {
   }
 });
 
-// Маршруты для лабораторных заданий
-app.get('/api/lab/tasks', async (req, res) => {
-  try {
-    const [tasks] = await pool.query('SELECT * FROM lab_tasks');
-    res.json(tasks);
-  } catch (error) {
-    res.status(500).json({ message: 'Ошибка сервера', error: error.message });
-  }
-});
 
-app.get('/api/lab/tasks/:id', async (req, res) => {
-  try {
-    const taskId = req.params.id;
-    const [task] = await pool.query('SELECT * FROM lab_tasks WHERE id = ?', [taskId]);
-    if (!task[0]) return res.status(404).json({ message: 'Задание не найдено' });
-
-    // Получаем блоки для задания
-    const [blocks] = await pool.query(`
-      SELECT * 
-      FROM lab_blocks 
-      WHERE task_id = ?
-      ORDER BY correct_order
-    `, [taskId]);
-
-    res.json({ task: task[0], blocks });
-  } catch (error) {
-    res.status(500).json({ message: 'Ошибка сервера', error: error.message });
-  }
-});
 
 // Оставьте только один обработчик:
 app.post('/api/lab/results', authenticateToken, async (req, res) => {
   try {
-    const { task_id, order } = req.body;
+    const { lab_id, results, attempt_time, total_score } = req.body;
     const userId = req.userId;
 
-    // Проверка существования задания
-    const [task] = await pool.query('SELECT * FROM lab_tasks WHERE id = ?', [task_id]);
-    if (!task[0]) return res.status(400).json({ message: 'Задание не существует' });
+    // Убедитесь, что lab_id существует (можно добавить проверку)
+    // ...
 
-    // Сохранение результата
+    // Удалили task_id из запроса
     await pool.query(`
-      INSERT INTO lab_results (user_id, task_id, block_order)
-      VALUES (?, ?, ?)
-    `, [userId, task_id, JSON.stringify(order)]);
+      INSERT INTO lab_results (user_id, lab_id, results, attempt_time, total_score)
+      VALUES (?, ?, ?, ?, ?)
+    `, [userId, lab_id, results, attempt_time, total_score]);
 
     res.status(201).json({ message: 'Результат сохранен' });
   } catch (error) {
@@ -533,27 +504,18 @@ app.get('/api/lab/tasks/:id', async (req, res) => {
   }
 });
 
-// Сохранение результата пользователя
-app.post('/api/lab/results', authenticateToken, async (req, res) => {
+// Новый маршрут: Получение всех заданий лабораторной по lab_id
+app.get('/api/lab/:labId/tasks', async (req, res) => {
   try {
-    const { task_id, order } = req.body;
-    const userId = req.userId;
-    console.log('Saving result:', {
-      userId,
-      task_id,
-      order: JSON.stringify(order)
-    });
-    // Проверка существования задания
-    const [task] = await pool.query('SELECT * FROM lab_tasks WHERE id = ?', [task_id]);
-    if (!task[0]) return res.status(400).json({ message: 'Задание не существует' });
+    const labId = req.params.labId;
+    const [tasks] = await pool.query(`
+      SELECT * 
+      FROM lab_tasks 
+      WHERE lab_id = ?
+      ORDER BY created_at ASC
+    `, [labId]);
 
-    // Сохранение результата
-    await pool.query(`
-      INSERT INTO lab_results (user_id, task_id, block_order)
-      VALUES (?, ?, ?)
-    `, [userId, task_id, JSON.stringify(order)]);
-
-    res.status(201).json({ message: 'Результат сохранен' });
+    res.json(tasks);
   } catch (error) {
     res.status(500).json({ message: 'Ошибка сервера', error: error.message });
   }

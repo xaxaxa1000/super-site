@@ -62,7 +62,7 @@ const routes = [
     props: true
   },
   {
-    path: '/lab/:taskId',
+    path: '/lab/:labId/tasks',
     name: 'LabTask', // Имя должно совпадать с router.push({ name: 'LabTask' })
     component: LabTask,
     meta: { requiresAuth: true },

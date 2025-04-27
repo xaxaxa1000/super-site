@@ -441,6 +441,124 @@ app.get('/api/video-tests/:videoId', async (req, res) => {
   }
 });
 
+// Маршруты для лабораторных заданий
+app.get('/api/lab/tasks', async (req, res) => {
+  try {
+    const [tasks] = await pool.query('SELECT * FROM lab_tasks');
+    res.json(tasks);
+  } catch (error) {
+    res.status(500).json({ message: 'Ошибка сервера', error: error.message });
+  }
+});
+
+app.get('/api/lab/tasks/:id', async (req, res) => {
+  try {
+    const taskId = req.params.id;
+    const [task] = await pool.query('SELECT * FROM lab_tasks WHERE id = ?', [taskId]);
+    if (!task[0]) return res.status(404).json({ message: 'Задание не найдено' });
+
+    // Получаем блоки для задания
+    const [blocks] = await pool.query(`
+      SELECT * 
+      FROM lab_blocks 
+      WHERE task_id = ?
+      ORDER BY correct_order
+    `, [taskId]);
+
+    res.json({ task: task[0], blocks });
+  } catch (error) {
+    res.status(500).json({ message: 'Ошибка сервера', error: error.message });
+  }
+});
+
+// Оставьте только один обработчик:
+app.post('/api/lab/results', authenticateToken, async (req, res) => {
+  try {
+    const { task_id, order } = req.body;
+    const userId = req.userId;
+
+    // Проверка существования задания
+    const [task] = await pool.query('SELECT * FROM lab_tasks WHERE id = ?', [task_id]);
+    if (!task[0]) return res.status(400).json({ message: 'Задание не существует' });
+
+    // Сохранение результата
+    await pool.query(`
+      INSERT INTO lab_results (user_id, task_id, block_order)
+      VALUES (?, ?, ?)
+    `, [userId, task_id, JSON.stringify(order)]);
+
+    res.status(201).json({ message: 'Результат сохранен' });
+  } catch (error) {
+    console.error('Ошибка сервера:', error);
+    res.status(500).json({ message: 'Ошибка сервера', error: error.message });
+  }
+});
+
+
+
+// Маршруты для связи видео и лабораторных заданий
+app.get('/api/video-labworks/:videoId', async (req, res) => {
+  try {
+    const videoId = req.params.videoId;
+    const [lab] = await pool.query(`
+      SELECT lt.*
+      FROM lab_tasks lt
+      JOIN video_lab_links vll ON lt.id = vll.task_id
+      WHERE vll.video_id = ?
+    `, [videoId]);
+    res.json(lab[0] || { message: 'Лабораторная не найдена' });
+  } catch (error) {
+    res.status(500).json({ message: 'Ошибка сервера' });
+  }
+});
+
+// Получение задания по ID
+app.get('/api/lab/tasks/:id', async (req, res) => {
+  try {
+    const taskId = req.params.id;
+    const [task] = await pool.query('SELECT * FROM lab_tasks WHERE id = ?', [taskId]);
+    if (!task[0]) return res.status(404).json({ message: 'Задание не найдено' });
+
+    // Получение блоков задания
+    const [blocks] = await pool.query(`
+      SELECT * 
+      FROM lab_blocks 
+      WHERE task_id = ?
+      ORDER BY correct_order
+    `, [taskId]);
+
+    res.json({ task: task[0], blocks });
+  } catch (error) {
+    res.status(500).json({ message: 'Ошибка сервера', error: error.message });
+  }
+});
+
+// Сохранение результата пользователя
+app.post('/api/lab/results', authenticateToken, async (req, res) => {
+  try {
+    const { task_id, order } = req.body;
+    const userId = req.userId;
+    console.log('Saving result:', {
+      userId,
+      task_id,
+      order: JSON.stringify(order)
+    });
+    // Проверка существования задания
+    const [task] = await pool.query('SELECT * FROM lab_tasks WHERE id = ?', [task_id]);
+    if (!task[0]) return res.status(400).json({ message: 'Задание не существует' });
+
+    // Сохранение результата
+    await pool.query(`
+      INSERT INTO lab_results (user_id, task_id, block_order)
+      VALUES (?, ?, ?)
+    `, [userId, task_id, JSON.stringify(order)]);
+
+    res.status(201).json({ message: 'Результат сохранен' });
+  } catch (error) {
+    res.status(500).json({ message: 'Ошибка сервера', error: error.message });
+  }
+});
+
 // Обработка 404
 app.use((req, res) => {
   console.warn(`[${new Date().toISOString()}] 404 Not Found: ${req.method} ${req.originalUrl}`);
@@ -452,7 +570,8 @@ app.use((err, req, res, next) => {
   console.error(`[${new Date().toISOString()}] Global Error Handler:`, err);
   res.status(500).json({
     message: 'Internal server error',
-    error: process.env.NODE_ENV === 'development' ? err : {}
+    error: process.env.NODE_ENV === 'development' ? err : {},
+
   });
 });
 

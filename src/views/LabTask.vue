@@ -7,7 +7,10 @@
           v-for="(task, index) in tasks"
           :key="task.id"
           @click="selectTask(task.id)"
-          :class="{ 'active-task': currentTaskId === task.id }"
+          :class="{
+    'active-task': currentTaskId === task.id,
+    'completed-task': completedTasks.includes(task.id)
+  }"
           class="task-item"
       >
         {{ index + 1 }}
@@ -50,10 +53,11 @@
       <button
           @click="checkOrder"
           class="btn check-btn"
-          :disabled="blocks.length === 0"
+          :disabled="blocks.length === 0 || isCheckDisabled"
       >
         Проверить
       </button>
+      <!--
       <button
           @click="submitLab"
           class="btn finish-btn"
@@ -61,17 +65,20 @@
       >
         {{ isSubmitted ? 'Завершено' : 'Завершить' }}
       </button>
+      -->
       <div v-if="showFeedback" class="feedback">
         <p :class="feedbackClass">{{ feedbackMessage }}</p>
       </div>
     </div>
 
     <!-- Результаты -->
+    <!-- В шаблоне -->
     <div v-if="showResults" class="result-popup">
       <div class="result-card">
         <h3>Результат:</h3>
         <p>Статус: <span :class="resultStatusClass">{{ resultStatus }}</span></p>
-        <div v-if="!isCorrect" class="correct-order">
+        <!-- Показываем правильный порядок только для текущего задания -->
+        <div v-if="!isLabSubmitted && !isCorrect" class="correct-order">
           <p>Правильный порядок:</p>
           <div class="order-list">
             {{ correctOrder.map(b => b.content).join(' → ') }}
@@ -105,13 +112,19 @@ export default {
       showFeedback: false,
       feedbackClass: "",
       resultStatus: "",
-      resultStatusClass: ""
+      resultStatusClass: "",
+      completedTasks: [],
+      submittedBlocks: {}, // Хранит ID блоков для каждого завершенного задания
+      isLabSubmitted: false, // Флаг завершения всей лабораторной
     };
   },
   computed: {
     isOrderValid() {
       return this.blocks.length === this.correctOrder.length;
-    }
+    },
+    isCheckDisabled() {
+      return this.completedTasks.includes(this.currentTaskId);
+    },
   },
   mounted() {
     this.fetchLabTasks();
@@ -168,6 +181,24 @@ export default {
       if (this.isOrderCorrect()) {
         this.feedbackMessage = "Порядок верный!";
         this.feedbackClass = "success";
+
+        // Сохраняем результаты текущего задания
+        this.submittedBlocks[this.currentTaskId] = this.blocks.map(b => b.id);
+        this.completedTasks.push(this.currentTaskId);
+
+        // Проверяем завершение всех заданий
+        if (this.completedTasks.length === this.tasks.length) {
+          this.submitLab(); // Автоматически отправляем результаты
+        }
+
+        // Переходим к следующему заданию или показываем результаты
+        const currentIdx = this.tasks.findIndex(t => t.id === this.currentTaskId);
+        const nextTask = this.tasks[currentIdx + 1];
+        if (nextTask) {
+          this.selectTask(nextTask.id);
+        } else {
+          this.showResults = true; // Показываем финальный экран
+        }
       } else {
         this.feedbackMessage = "Порядок неверный. Попробуйте еще раз.";
         this.feedbackClass = "error";
@@ -185,17 +216,18 @@ export default {
       );
     },
 
+    // В методе submitLab()
     async submitLab() {
-      if (!this.isOrderCorrect()) {
-        this.feedbackMessage = "Порядок неверный. Попробуйте еще раз";
-        this.showFeedback = true;
-        return;
-      }
-
       const token = localStorage.getItem("authToken");
       if (!token) return alert("Авторизуйтесь для отправки");
 
       try {
+        // Формируем массив ID блоков текущего задания в правильном порядке
+        const blocksOrder = this.blocks.map(block => block.id);
+
+        // Если нужно сохранить данные всех заданий, используйте submittedBlocks:
+        // const allResults = this.submittedBlocks; // Убедитесь, что он инициализирован
+
         const response = await fetch(
             `${import.meta.env.VITE_BACKEND_URL}/api/lab/results`,
             {
@@ -205,9 +237,8 @@ export default {
                 Authorization: `Bearer ${token}`,
               },
               body: JSON.stringify({
-                // Удалили task_id
                 lab_id: this.labId,
-                results: JSON.stringify(this.blocks.map(b => b.id)),
+                results: JSON.stringify(blocksOrder), // Отправляем массив ID как JSON
                 attempt_time: new Date().toISOString(),
                 total_score: this.isOrderCorrect() ? 100 : 0
               }),
@@ -215,10 +246,9 @@ export default {
         );
 
         if (response.ok) {
-          this.isSubmitted = true;
-          this.isCorrect = true;
+          this.isLabSubmitted = true;
           this.showResults = true;
-          this.resultStatus = "Верно";
+          this.resultStatus = "Лабораторная завершена!";
           this.resultStatusClass = "success";
         } else {
           throw new Error("Ошибка отправки");
@@ -261,6 +291,11 @@ body {
   background: #fff;
   border-radius: 8px;
   box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+.completed-task {
+  background: #4CAF50 !important;
+  color: white !important;
+  box-shadow: 0 0 10px rgba(76, 175, 80, 0.5) !important;
 }
 .task-item {
   padding: 12px 20px;
@@ -373,14 +408,8 @@ body {
   gap: 15px;
 }
 .success {
-  background: #d1fae5;
-  border: 1px solid #10b981;
-  color: #10b981;
-  padding: 8px 15px;
-  border-radius: 4px;
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
+  color: #4CAF50;
+  font-weight: bold;
 }
 .error {
   background: #fee2e2;
@@ -411,7 +440,17 @@ body {
 }
 .result-card {
   padding: 30px;
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  max-width: 600px;
+  margin: 40px auto;
 }
+
+.result-card h3 {
+  color: #2196F3;
+}
+
 .correct-order {
   margin-top: 20px;
   padding: 20px;

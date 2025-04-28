@@ -113,7 +113,8 @@ const getVideoId = (url) => {
   const ytMatch = url.match(ytRegex);
   if (ytMatch && ytMatch[2].length === 11) return ytMatch[2];
 
-  const rutubeRegex = /rutube\.ru\/video\/([a-f0-9]{32})/;
+  // Обновленное регулярное выражение для Rutube с поддержкой private
+  const rutubeRegex = /rutube\.ru\/video\/(?:[^\/]+\/)?([a-f0-9]{32})\/?/i;
   const rutubeMatch = url.match(rutubeRegex);
   if (rutubeMatch) return rutubeMatch[1];
 

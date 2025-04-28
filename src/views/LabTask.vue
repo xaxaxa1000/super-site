@@ -117,6 +117,9 @@ export default {
     this.fetchLabTasks();
   },
   methods: {
+    shuffleArray(array) {
+      return array.slice().sort(() => 0.5 - Math.random());
+    },
     async fetchLabTasks() {
       try {
         const response = await fetch(
@@ -140,10 +143,15 @@ export default {
         );
         const data = await response.json();
         this.task = data.task;
-        this.blocks = data.blocks;
+
+        // Перемешиваем блоки перед отображением
+        this.blocks = this.shuffleArray(data.blocks);
+
+        // Сохраняем правильный порядок отдельно
         this.correctOrder = data.blocks.slice().sort(
             (a, b) => a.correct_order - b.correct_order
         );
+
         this.isSubmitted = false;
       } catch (error) {
         console.error("Ошибка загрузки задания:", error);

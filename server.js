@@ -92,6 +92,24 @@ app.get('/api/videos', async (req, res) => {
   }
 });
 
+// Получение списка всех публичных видео из таблицы video_applicant
+app.get('/api/videos-applicant', async (req, res) => {
+  try {
+    console.log(`[${new Date().toISOString()}] Fetching applicant videos`);
+
+    const [rows] = await pool.query(`
+      SELECT id, title, url, preview_image_url, duration 
+      FROM video_applicant 
+      WHERE is_public = 1
+    `);
+
+    res.json(rows);
+  } catch (error) {
+    console.error(`[${new Date().toISOString()}] Error: ${error.message}`);
+    res.status(500).json({ message: 'Database error', error: error.message });
+  }
+});
+
 // Получение конкретного видео по ID
 app.get('/api/videos/:id', async (req, res) => {
   try {

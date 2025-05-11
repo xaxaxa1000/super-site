@@ -79,6 +79,11 @@ const routes = [
       }
     ],
   },
+  {
+    path: '/search/:query',
+    name: 'search',
+    component: VideoGallery,
+  },
 ];
 
 //{

@@ -16,68 +16,108 @@
         {{ index + 1 }}
       </div>
     </div>
-
     <!-- Информация о текущем задании -->
     <div v-if="task.name" class="lab-info">
       <h2>{{ task.name }}</h2>
       <p>{{ task.description }}</p>
     </div>
-
     <!-- Блок с перетаскиваемыми элементами -->
-    <draggable
-        v-model="blocks"
-        tag="div"
-        item-key="id"
-        class="block-container"
-        :options="{
-        animation: 200,
-        handle: null,
-        axis: 'x',
-        ghostClass: 'ghost-block'
-      }"
-    >
-      <div
-          v-for="element in blocks"
-          :key="element.id"
-          class="draggable-block"
-          @dragstart="dragStart"
+    <div v-if="task.type === 'move'">
+      <draggable
+          v-model="blocks"
+          tag="div"
+          item-key="id"
+          class="block-container"
+          :options="{
+      animation: 200,
+      handle: null,
+      axis: 'x',
+      ghostClass: 'ghost-block'
+    }"
       >
-        <div class="block-content">
-          {{ element.content }}
+        <div
+            v-for="element in blocks"
+            :key="element.id"
+            class="draggable-block"
+            @dragstart="dragStart"
+        >
+          <div class="block-content">
+            {{ element.content }}
+          </div>
         </div>
+      </draggable>
+    </div>
+    <div v-else-if="task.type === 'move-wrong'">
+      <!-- Две линии -->
+      <div class="line-container">
+        <!-- Основная линия (line 0) -->
+        <draggable
+            v-model="mainLine"
+            class="block-container"
+            group="common"
+            item-key="id"
+            :animation="200"
+            :ghost-class="'ghost-block'"
+            :swap-threshold="0.5"
+        >
+          <div
+              v-for="block in mainLine"
+              :key="block.id"
+              class="draggable-block"
+              :class="{ 'correct-block': block.correct }"
+              @dragstart="dragStart"
+          >
+            {{ block.content }}
+          </div>
+        </draggable>
       </div>
-    </draggable>
-
+      <div class="line-container">
+        <!-- Дополнительная линия (line 1) -->
+        <draggable
+            v-model="extraLine"
+            class="block-container"
+            group="common"
+            item-key="id"
+            :animation="200"
+            :ghost-class="'ghost-block'"
+            :swap-threshold="0.5"
+        >
+          <div
+              v-for="block in extraLine"
+              :key="block.id"
+              class="draggable-block"
+              :class="{ 'correct-block': block.correct }"
+              @dragstart="dragStart"
+          >
+            {{ block.content }}
+          </div>
+        </draggable>
+      </div>
+    </div>
+    <!-- Placeholder для других типов -->
+    <div v-else>
+      <div class="unsupported-type">
+        <p>Тип задания {{ task.type }} не поддерживается</p>
+      </div>
+    </div>
     <!-- Кнопки и фидбэк -->
     <div class="control-panel">
       <button
           @click="checkOrder"
           class="btn check-btn"
-          :disabled="blocks.length === 0 || isCheckDisabled"
+          :disabled="(task.type === 'move' ? blocks.length === 0 : mainLine.length === 0) || isCheckDisabled"
       >
         Проверить
       </button>
-      <!--
-      <button
-          @click="submitLab"
-          class="btn finish-btn"
-          :disabled="isSubmitted || !isOrderValid"
-      >
-        {{ isSubmitted ? 'Завершено' : 'Завершить' }}
-      </button>
-      -->
       <div v-if="showFeedback" class="feedback">
         <p :class="feedbackClass">{{ feedbackMessage }}</p>
       </div>
     </div>
-
     <!-- Результаты -->
-    <!-- В шаблоне -->
     <div v-if="showResults" class="result-popup">
       <div class="result-card">
         <h3>Результат:</h3>
         <p>Статус: <span :class="resultStatusClass">{{ resultStatus }}</span></p>
-        <!-- Показываем правильный порядок только для текущего задания -->
         <div v-if="!isLabSubmitted && !isCorrect" class="correct-order">
           <p>Правильный порядок:</p>
           <div class="order-list">
@@ -116,6 +156,10 @@ export default {
       completedTasks: [],
       submittedBlocks: {}, // Хранит ID блоков для каждого завершенного задания
       isLabSubmitted: false, // Флаг завершения всей лабораторной
+      mainLine: [],   // Блоки основной линии (line 0)
+      extraLine: [],  // Блоки дополнительной линии (line 1)
+      correctMainOrder: [], // Правильный порядок для mainLine
+
     };
   },
   computed: {
@@ -123,7 +167,9 @@ export default {
       return this.blocks.length === this.correctOrder.length;
     },
     isCheckDisabled() {
-      return this.completedTasks.includes(this.currentTaskId);
+      return this.completedTasks.includes(this.currentTaskId)
+          || (this.task.type === 'move' && this.blocks.length === 0)
+          || (this.task.type === 'move-wrong' && this.mainLine.length === 0);
     },
   },
   mounted() {
@@ -156,15 +202,38 @@ export default {
         );
         const data = await response.json();
         this.task = data.task;
+        console.log(this.mainLine)
+        // Очистка предыдущих данных
+        this.blocks = [];
+        this.mainLine = [];
+        this.extraLine = [];
+        this.correctOrder = [];
+        this.correctMainOrder = [];
 
-        // Перемешиваем блоки перед отображением
-        this.blocks = this.shuffleArray(data.blocks);
-
-        // Сохраняем правильный порядок отдельно
-        this.correctOrder = data.blocks.slice().sort(
-            (a, b) => a.correct_order - b.correct_order
-        );
-
+        if (this.task.type === 'move') {
+          // Для move: исключаем блоки с correct_order = -1
+          const filteredBlocks = data.blocks.filter(block => block.correct_order >= 0);
+          this.blocks = this.shuffleArray(filteredBlocks);
+          this.correctOrder = filteredBlocks
+              .slice()
+              .sort((a, b) => a.correct_order - b.correct_order);
+        } else if (this.task.type === 'move-wrong') {
+          // Для move-wrong: фильтруем блоки по line и correct_order
+          // Основная линия (line 0) содержит только блоки с correct_order >= 0
+          this.mainLine = this.shuffleArray(
+              data.blocks
+                  .filter(block => block.line === 0 && block.correct_order >= 0)
+          );
+          // Дополнительная линия (line 1) содержит все остальные блоки
+          this.extraLine = this.shuffleArray(
+              data.blocks
+                  .filter(block => block.line === 1 || block.correct_order === -1)
+          );
+          // Правильный порядок для mainLine
+          this.correctMainOrder = data.blocks
+              .filter(block => block.line === 0 && block.correct_order >= 0)
+              .sort((a, b) => a.correct_order - b.correct_order);
+        }
         this.isSubmitted = false;
       } catch (error) {
         console.error("Ошибка загрузки задания:", error);
@@ -177,41 +246,65 @@ export default {
     },
 
     checkOrder() {
-      this.showFeedback = true;
-      if (this.isOrderCorrect()) {
-        this.feedbackMessage = "Порядок верный!";
-        this.feedbackClass = "success";
+      if (this.task.type === 'move') {
+        this.showFeedback = true;
+        if (this.isOrderCorrect()) {
+          this.feedbackMessage = "Порядок верный!";
+          this.feedbackClass = "success";
 
-        // Сохраняем результаты текущего задания
-        this.submittedBlocks[this.currentTaskId] = this.blocks.map(b => b.id);
-        this.completedTasks.push(this.currentTaskId);
+          // Сохраняем результаты текущего задания
+          this.submittedBlocks[this.currentTaskId] = this.blocks.map(b => b.id);
+          this.completedTasks.push(this.currentTaskId);
 
-        // Проверяем завершение всех заданий
-        if (this.completedTasks.length === this.tasks.length) {
-          this.submitLab(); // Автоматически отправляем результаты
-        }
+          // Проверяем завершение всех заданий
+          if (this.completedTasks.length === this.tasks.length) {
+            this.submitLab(); // Автоматически отправляем результаты
+          }
 
-        // Переходим к следующему заданию или показываем результаты
-        const currentIdx = this.tasks.findIndex(t => t.id === this.currentTaskId);
-        const nextTask = this.tasks[currentIdx + 1];
-        if (nextTask) {
-          this.selectTask(nextTask.id);
+          // Переходим к следующему заданию или показываем результаты
+          const currentIdx = this.tasks.findIndex(t => t.id === this.currentTaskId);
+          const nextTask = this.tasks[currentIdx + 1];
+          if (nextTask) {
+            this.selectTask(nextTask.id);
+          } else {
+            this.showResults = true; // Показываем финальный экран
+          }
         } else {
-          this.showResults = true; // Показываем финальный экран
+          this.feedbackMessage = "Порядок неверный. Попробуйте еще раз.";
+          this.feedbackClass = "error";
         }
-      } else {
-        this.feedbackMessage = "Порядок неверный. Попробуйте еще раз.";
-        this.feedbackClass = "error";
+      }else if (this.task.type === 'move-wrong') {
+        this.showFeedback = true;
+
+        // 1. Проверяем что ВСЕ блоки в mainLine правильные
+        const allCorrect = this.mainLine.every(block => block.correct);
+
+        // 2. Проверяем порядок только правильных блоков
+        const isOrderCorrect = this.mainLine.length === this.correctMainOrder.length &&
+            this.mainLine.every((block, index) =>
+                block.id === this.correctMainOrder[index]?.id
+            );
+
+        if (allCorrect && isOrderCorrect) {
+          this.feedbackMessage = "Порядок верный!";
+          this.feedbackClass = "success";
+          this.completedTasks.push(this.currentTaskId);
+        } else {
+          this.feedbackMessage = "Порядок неверный. Попробуйте еще раз.";
+          this.feedbackClass = "error";
+        }
       }
     },
 
     isOrderCorrect() {
+      // Проверяем только блоки с correct_order >= 0
+      const filteredBlocks = this.blocks.filter(block => block.correct_order >= 0);
       return (
-          this.blocks
-              .map((b) => b.id)
+          filteredBlocks
+              .map(b => b.id)
               .join(",") ===
           this.correctOrder
-              .map((b) => b.id)
+              .map(b => b.id)
               .join(",")
       );
     },

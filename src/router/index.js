@@ -1,6 +1,4 @@
-// index.js
-import { createRouter, createWebHistory } from 'vue-router'
-import App from '@/views/App.vue'
+import { createRouter, createWebHistory } from 'vue-router';
 import Home from '@/views/Home.vue';
 import Login from '@/views/Login.vue';
 import VideoGallery from '@/views/VideoGallery.vue';
@@ -10,25 +8,25 @@ import ResetPassword from "@/views/ResetPassword.vue";
 import Register from "@/views/Register.vue";
 import Profile from "@/views/Profile.vue";
 import TestPage from "@/views/TestPage.vue";
-
+import LabTask from "@/views/LabTask.vue"; // Убедитесь, что импорт корректен
 
 const routes = [
   {
     path: '/',
-    redirect: '/home' // Перенаправление с корня на /home
+    redirect: '/home'
   },
   {
     path: '/home',
     component: Home,
     children: [
       {
-        path: '', // Дефолтный маршрут для /home
+        path: '',
         component: VideoGallery
       },
       {
-        path: 'video/:id', // Динамический параметр ID
+        path: 'video/:id',
         component: VideoPlayer,
-        name: 'video' // Именованный маршрут для удобства
+        name: 'video'
       }
     ]
   },
@@ -55,14 +53,19 @@ const routes = [
     path: '/profile',
     name: 'Profile',
     component: Profile,
-    meta: { requiresAuth: true } // Добавьте защиту для роута
+    meta: { requiresAuth: true }
   },
   {
     path: '/test/:testId',
     name: 'test',
     component: TestPage,
-    props: true,
-    //meta: { requiresAuth: true } // Добавьте защиту для роута
+    props: true
+  },
+  {
+    path: '/lab/:labId/tasks',
+    name: 'LabTask', // Имя должно совпадать с router.push({ name: 'LabTask' })
+    component: LabTask,
+    meta: { requiresAuth: true },
   }
 ];
 

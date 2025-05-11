@@ -46,14 +46,15 @@ const loading = ref(true)
 const error = ref(null)
 
 // Парсинг ID видео из URL
+// Парсинг ID видео из URL
 const getVideoId = (url) => {
   // YouTube
   const ytRegex = /(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|&v=))([\w-]{11})/i
   const ytMatch = url.match(ytRegex)
   if (ytMatch) return { platform: 'youtube', id: ytMatch[1] }
 
-  // Rutube
-  const rutubeRegex = /rutube\.ru\/video\/([a-f0-9]{32})/i
+  // Rutube (обновленное регулярное выражение)
+  const rutubeRegex = /rutube\.ru\/video\/(?:[^\/]+\/)?([a-f0-9]{32})/i
   const rutubeMatch = url.match(rutubeRegex)
   if (rutubeMatch) return { platform: 'rutube', id: rutubeMatch[1] }
 

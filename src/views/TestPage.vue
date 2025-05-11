@@ -44,13 +44,7 @@
     </div>
 
     <!-- Кнопка завершения теста (только если тест не завершен) -->
-    <button
-        v-if="!isTimerEnded && !isTestCompleted && !showResults"
-        @click="finishTest"
-        class="finish-btn"
-    >
-      Завершить тест
-    </button>
+
 
     <!-- Блок с результатами -->
     <div v-if="showResults" class="results-container">

@@ -244,7 +244,7 @@ fetchVideos()
 
 .video-player iframe {
   width: 100%;
-  height: 500px;
+  height: 550px;
   border-radius: 4px;
   margin: 20px 0;
 }

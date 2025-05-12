@@ -49,7 +49,10 @@
     </div>
     <div v-else-if="task.type === 'move-wrong'">
       <!-- Две линии -->
-      <div class="line-container">
+      <div class="line-container answer-line">
+        <h4 class="line-title">
+          <span class="line-icon">📝</span> Перетащите сюда правильные блоки
+        </h4>
         <!-- Основная линия (line 0) -->
         <draggable
             v-model="mainLine"
@@ -71,7 +74,10 @@
           </div>
         </draggable>
       </div>
-      <div class="line-container">
+      <div class="line-container storage-line">
+        <h4 class="line-title">
+          <span class="line-icon">🧩</span> Доступные блоки
+        </h4>
         <!-- Дополнительная линия (line 1) -->
         <draggable
             v-model="extraLine"
@@ -220,19 +226,28 @@ export default {
         } else if (this.task.type === 'move-wrong') {
           // Для move-wrong: фильтруем блоки по line и correct_order
           // Основная линия (line 0) содержит только блоки с correct_order >= 0
+          //this.mainLine = this.shuffleArray(
+          //    data.blocks
+          //        .filter(block => block.line === 0 && block.correct_order >= 0)
+          //);
+          // Дополнительная линия (line 1) содержит все остальные блоки
+          //this.extraLine = this.shuffleArray(
+          //    data.blocks
+          //        .filter(block => block.line === 1 || block.correct_order === -1)
+          //);
           this.mainLine = this.shuffleArray(
               data.blocks
-                  .filter(block => block.line === 0 && block.correct_order >= 0)
+                  .filter(block => block.line === 0 )
           );
           // Дополнительная линия (line 1) содержит все остальные блоки
           this.extraLine = this.shuffleArray(
               data.blocks
-                  .filter(block => block.line === 1 || block.correct_order === -1)
+                  .filter(block => block.line === 1 )
           );
           // Правильный порядок для mainLine
           this.correctMainOrder = data.blocks
-              .filter(block => block.line === 0 && block.correct_order >= 0)
-              .sort((a, b) => a.correct_order - b.correct_order);
+              .filter(block => block.correct_order >= 0) // Включаем все правильные блоки
+              .sort((a, b) => a.correct_order - b.correct_order); // Сортируем по правильному порядку
         }
         this.isSubmitted = false;
       } catch (error) {
@@ -276,16 +291,14 @@ export default {
       }else if (this.task.type === 'move-wrong') {
         this.showFeedback = true;
 
-        // 1. Проверяем что ВСЕ блоки в mainLine правильные
-        const allCorrect = this.mainLine.every(block => block.correct);
-
-        // 2. Проверяем порядок только правильных блоков
-        const isOrderCorrect = this.mainLine.length === this.correctMainOrder.length &&
+        // В методе checkOrder() для task.type === 'move-wrong':
+        const isOrderCorrect =
+            this.mainLine.length === this.correctMainOrder.length &&
             this.mainLine.every((block, index) =>
                 block.id === this.correctMainOrder[index]?.id
             );
 
-        if (allCorrect && isOrderCorrect) {
+        if (isOrderCorrect) {
           this.feedbackMessage = "Порядок верный!";
           this.feedbackClass = "success";
           this.completedTasks.push(this.currentTaskId);
@@ -370,6 +383,44 @@ body {
   font-family: Arial, sans-serif;
   background: #f5f5f5;
 }
+
+.line-container {
+  margin: 20px 0;
+  padding: 15px;
+  border-radius: 8px;
+  transition: all 0.3s;
+}
+.answer-line {
+  background: #f8fafd;
+  border: 2px dashed #2196F3;
+  box-shadow: 0 2px 8px rgba(33, 150, 243, 0.1);
+}
+.storage-line {
+  background: #f9f9f9;
+  border: 2px solid #e0e0e0;
+}
+
+.line-title {
+  margin: 0 0 15px 0;
+  color: #555;
+  font-size: 15px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.line-icon {
+  font-size: 20px;
+}
+
+/* Стили для блоков в разных линиях */
+.answer-line .draggable-block {
+  border: 2px solid #2196F3;
+  background: #e3f2fd;
+}
+
+
+
 .lab-container {
   max-width: 1200px;
   margin: 0 auto;

@@ -227,12 +227,36 @@ app.post('/api/reset-password', async (req, res) => {
       expiresAt
     ]);
 
-    // Отправка письма
+
+    // Ссылка для сброса
+    const resetLink = `${process.env.SER_FRONTEND}/reset?token=${token}`;
+
+    // HTML-письмо
     const mailOptions = {
       from: process.env.MAIL_USER,
       to: email,
-      subject: 'Сброс пароля',
-      text: `Перейдите по ссылке: ${process.env.SER_FRONTEND}/reset?token=${token}`
+      subject: 'Восстановление пароля',
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; border: 1px solid #eaeaea; padding: 20px; border-radius: 8px;">
+          <h2 style="color: #333; text-align: center;">Восстановление пароля</h2>
+          <p style="font-size: 16px; color: #555;">
+            Мы получили запрос на восстановление пароля. Если это были вы — нажмите кнопку ниже:
+          </p>
+          <div style="text-align: center; margin: 30px 0;">
+            <a href="${resetLink}" 
+               style="background-color: #007BFF; color: white; padding: 14px 24px; text-decoration: none; font-size: 16px; border-radius: 4px; display: inline-block;">
+              Сбросить пароль
+            </a>
+          </div>
+          <p style="color: #888; font-size: 14px; text-align: center;">
+            Ссылка действует 1 час. Если вы не запрашивали сброс пароля — проигнорируйте это письмо.
+          </p>
+          <hr style="margin-top: 30px; border: none; border-top: 1px solid #eee;" />
+          <p style="text-align: center; color: #aaa; font-size: 12px;">
+            © ${new Date().getFullYear()} СИБ ВГТУ. Все права защищены.
+          </p>
+        </div>
+      `
     };
 
     transporter.sendMail(mailOptions, (error) => {

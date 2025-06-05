@@ -80,9 +80,9 @@ app.get('/api/videos', async (req, res) => {
     console.log(`[${new Date().toISOString()}] Fetching all videos`);
 
     const [rows] = await pool.query(`
-      SELECT id, title, url, preview_image_url, duration 
-      FROM videos 
-      WHERE is_public = 1
+       SELECT id, title, url, preview_image_url, duration 
+  FROM videos 
+  WHERE is_public = 1;
     `);
 
     res.json(rows);

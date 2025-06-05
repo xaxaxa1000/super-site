@@ -31,7 +31,7 @@
             <!-- Пароль -->
             <div class="form-group text-left">
               <label for="password">Пароль</label>
-              <div class="input-group">
+              <div class="password-group">
                 <input
                     v-model="formData.password"
                     :type="showPassword ? 'text' : 'password'"
@@ -40,15 +40,13 @@
                     placeholder="Введите пароль"
                     required
                 />
-                <span class="input-group-btn">
-                  <button
-                      type="button"
-                      class="btn btn-default"
-                      @click="showPassword = !showPassword"
-                  >
-                    {{ showPassword ? 'Скрыть' : 'Показать' }}
-                  </button>
-                </span>
+                <button
+                    type="button"
+                    class="toggle-password"
+                    @click="showPassword = !showPassword"
+                >
+                  {{ showPassword ? 'Скрыть' : 'Показать' }}
+                </button>
               </div>
             </div>
 
@@ -190,7 +188,38 @@ export default {
   font-size: 15px;
   transition: border-color 0.3s ease;
 }
+.password-group {
+  display: flex;
+  position: relative;
+}
 
+.password-group .form-control {
+  flex: 1;
+  border-radius: 6px 0 0 6px;
+  border-right: none;
+}
+
+.toggle-password {
+  background-color: #f1f1f1;
+  border: 1px solid #ccc;
+  border-left: none;
+  border-radius: 0 6px 6px 0;
+  color: #555;
+  cursor: pointer;
+  padding: 10px 15px;
+  transition: background-color 0.3s ease;
+  white-space: nowrap;
+}
+
+.toggle-password:hover {
+  background-color: #e0e0e0;
+}
+
+/* Для фокусировки - стилизация всей группы */
+.password-group:focus-within {
+  box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
+  border-radius: 6px;
+}
 
 .form-control:focus {
   border-color: #007bff;
@@ -198,6 +227,7 @@ export default {
 }
 
 .input-group-btn .btn {
+  display: flex;
   border-radius: 0 6px 6px 0;
   border-left: none;
   background-color: #f1f1f1;

@@ -95,6 +95,7 @@
 
 <script>
 import { ref, computed } from 'vue';
+import CryptoJS from 'crypto-js';
 
 export default {
   setup() {
@@ -153,10 +154,23 @@ export default {
         isLoading.value = true;
         message.value = '';
 
-        const response = await fetch('http://25.54.39.23:3000/api/register', {
+        // Хешируем пароль перед отправкой
+        const hashedPassword = CryptoJS.SHA256(formData.value.password).toString();
+
+        // Формируем тело запроса без confirmPassword
+        const registrationData = {
+          firstName: formData.value.firstName,
+          lastName: formData.value.lastName,
+          email: formData.value.email,
+          userType: formData.value.userType,
+          group: formData.value.group || null,
+          password: hashedPassword //  Отправляем хеш
+        };
+
+        const response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/register`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(formData.value)
+          body: JSON.stringify(registrationData)
         });
 
         if (response.ok) {

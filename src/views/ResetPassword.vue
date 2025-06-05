@@ -41,6 +41,7 @@
 <script>
 import { ref, computed } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
+import CryptoJS from 'crypto-js';
 
 export default {
   setup() {
@@ -74,16 +75,26 @@ export default {
         return;
       }
 
+      // ✅ Проверка минимальной длины пароля
+      if (password.value.length < 8) {
+        message.value = 'Пароль должен быть не менее 8 символов';
+        isSuccess.value = false;
+        return;
+      }
+
       try {
         isLoading.value = true;
         message.value = '';
+
+        // 🔐 Хешируем пароль перед отправкой
+        const hashedPassword = CryptoJS.SHA256(password.value).toString();
 
         const response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/reset-password/confirm`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             token: token.value,
-            newPassword: password.value
+            newPassword: hashedPassword // ✅ Отправляем хеш
           })
         });
 

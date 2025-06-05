@@ -7,6 +7,7 @@ const jwt = require('jsonwebtoken'); // Для работы с JWT
 const nodemailer = require('nodemailer');
 const uuidv4 = require('uuid').v4; // Исправленный импорт
 require('dotenv').config(); // Для загрузки переменных окружения
+const crypto = require('crypto');
 
 const app = express();
 
@@ -163,9 +164,11 @@ app.post('/api/login', async (req, res) => {
       return res.status(401).json({ message: 'Invalid credentials' });
     }
 
-    // Сравниваем хеши паролей
-    const passwordMatch = await bcrypt.compare(password, user.password_hash);
-    if (!passwordMatch) {
+    // Хешируем полученный пароль (уже хеш от клиента)
+    //const receivedHash = crypto.createHash('sha256').update(password).digest('hex');
+
+    // Сравниваем хеши
+    if (password !== user.password_hash) {
       return res.status(401).json({ message: 'Invalid credentials' });
     }
 
@@ -293,12 +296,14 @@ app.post('/api/reset-password/confirm', async (req, res) => {
       return res.status(400).json({ message: 'Срок действия токена истек' });
     }
 
-    // 3. Хешировать новый пароль
-    const hashedPassword = await bcrypt.hash(newPassword, 10);
+    // 3. ❗️Проверка: пароль должен быть SHA-256 хешем (64 символа)
+    if (newPassword.length !== 64 || !/^[a-f0-9]{64}$/i.test(newPassword)) {
+      return res.status(400).json({ message: 'Пароль должен быть SHA-256 хешем' });
+    }
 
-    // 4. Обновить пароль пользователя
+    // 4. Сохранить хеш напрямую в БД (без повторного хеширования)
     await pool.query('UPDATE users SET password_hash = ? WHERE id = ?', [
-      hashedPassword,
+      newPassword,
       resetToken.user_id
     ]);
 
@@ -338,13 +343,15 @@ app.post('/api/register', async (req, res) => {
       return res.status(400).json({ message: 'Пользователь с таким email уже существует' });
     }
 
-    // Хеширование пароля
-    const hashedPassword = await bcrypt.hash(password, 10);
+    // ❗️Проверка: пароль должен быть SHA-256 хешем (64 символа)
+    if (password.length !== 64 || !/^[a-f0-9]{64}$/i.test(password)) {
+      return res.status(400).json({ message: 'Пароль должен быть SHA-256 хешем' });
+    }
 
-    // Сохранение в БД
+    // Сохранение в БД (без хеширования на сервере)
     await pool.query(
         'INSERT INTO users (first_name, last_name, email, user_type, study_group, password_hash) VALUES (?, ?, ?, ?, ?, ?)',
-        [firstName, lastName, email, userType, group || null, hashedPassword]
+        [firstName, lastName, email, userType, group || null, password] // Пароль уже хеширован
     );
 
     res.status(200).json({ message: 'Пользователь успешно зарегистрирован' });

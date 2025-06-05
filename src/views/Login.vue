@@ -73,6 +73,8 @@
 </template>
 
 <script>
+import CryptoJS from 'crypto-js'; // Импорт библиотеки
+
 export default {
   data() {
     return {
@@ -88,6 +90,9 @@ export default {
     async handleLogin() {
       try {
         this.isLoading = true;
+
+        // Хешируем пароль с помощью SHA-256
+        const hashedPassword = CryptoJS.SHA256(this.formData.password).toString();
         const response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/login`, {
           method: 'POST',
           headers: {
@@ -95,7 +100,7 @@ export default {
           },
           body: JSON.stringify({
             email: this.formData.email,
-            password: this.formData.password
+            password: hashedPassword // Отправляем хеш вместо оригинального пароля
           })
         });
 

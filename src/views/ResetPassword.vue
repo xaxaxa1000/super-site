@@ -10,9 +10,16 @@
             id="password"
             required
             placeholder="Введите новый пароль"
+            @input="validatePassword"
         />
       </div>
-
+      <div class="password-hints">
+        <p :class="{ 'valid': passwordHints.length }">Не менее 8 символов</p>
+        <p :class="{ 'valid': passwordHints.uppercase }">Заглавные буквы</p>
+        <p :class="{ 'valid': passwordHints.lowercase }">Строчные буквы</p>
+        <p :class="{ 'valid': passwordHints.numbers }">Цифры</p>
+        <p :class="{ 'valid': passwordHints.specialChars }">Спецсимволы</p>
+      </div>
       <div class="form-group">
         <label for="confirmPassword">Подтвердите пароль:</label>
         <input
@@ -61,8 +68,37 @@ export default {
     const passwordMismatch = computed(() => {
       return password.value !== confirmPassword.value;
     });
+    const passwordHints = ref({
+      length: false,
+      uppercase: false,
+      lowercase: false,
+      numbers: false,
+      specialChars: false
+    });
+
+    const isPasswordValid = computed(() => {
+      return Object.values(passwordHints.value).every(Boolean);
+    });
+
+    const validatePassword = () => {
+      const passwordValue = password.value;
+      passwordHints.value.length = passwordValue.length >= 8;
+      passwordHints.value.uppercase = /[A-Z]/.test(passwordValue);
+      passwordHints.value.lowercase = /[a-z]/.test(passwordValue);
+      passwordHints.value.numbers = /\d/.test(passwordValue);
+      passwordHints.value.specialChars = /[@$!%*?&]/.test(passwordValue);
+    };
 
     const submitNewPassword = async () => {
+
+      // ✅ Проверка сложности пароля
+      validatePassword(); // Обновляем хинты
+      if (!isPasswordValid.value) {
+        message.value = 'Пароль не соответствует требованиям сложности';
+        isSuccess.value = false;
+        return;
+      }
+
       if (passwordMismatch.value) {
         message.value = 'Пароли не совпадают';
         isSuccess.value = false;
@@ -121,7 +157,9 @@ export default {
       isLoading,
       message,
       isSuccess,
-      submitNewPassword
+      submitNewPassword,
+      passwordHints,     // ✅ Добавлено
+      validatePassword
     };
   }
 };
@@ -171,5 +209,18 @@ button:disabled {
 .success-message {
   color: #4CAF50;
   margin: 0.5rem 0;
+}
+.password-hints {
+  margin-top: 0.5rem;
+  font-size: 0.85em;
+}
+
+.password-hints p {
+  margin: 0;
+  color: #999;
+}
+
+.password-hints .valid {
+  color: green;
 }
 </style>

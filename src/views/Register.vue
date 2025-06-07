@@ -67,7 +67,15 @@
             id="password"
             required
             placeholder="Введите пароль"
+            @input="validatePassword"
         />
+        <div class="password-hints">
+          <p :class="{ 'valid': passwordHints.length }">Не менее 8 символов</p>
+          <p :class="{ 'valid': passwordHints.uppercase }">Заглавные буквы</p>
+          <p :class="{ 'valid': passwordHints.lowercase }">Строчные буквы</p>
+          <p :class="{ 'valid': passwordHints.numbers }">Цифры</p>
+          <p :class="{ 'valid': passwordHints.specialChars }">Спецсимволы</p>
+        </div>
       </div>
 
       <div class="form-group">
@@ -95,6 +103,7 @@
 
 <script>
 import { ref, computed } from 'vue';
+import CryptoJS from 'crypto-js';
 
 export default {
   setup() {
@@ -125,6 +134,26 @@ export default {
     const passwordMismatch = computed(() =>
         formData.value.password !== formData.value.confirmPassword
     );
+    const passwordHints = ref({
+      length: false,
+      uppercase: false,
+      lowercase: false,
+      numbers: false,
+      specialChars: false
+    });
+
+    const validatePassword = () => {
+      const password = formData.value.password;
+      passwordHints.value.length = password.length >= 8;
+      passwordHints.value.uppercase = /[A-Z]/.test(password);
+      passwordHints.value.lowercase = /[a-z]/.test(password);
+      passwordHints.value.numbers = /\d/.test(password);
+      passwordHints.value.specialChars = /[@$!%*?&]/.test(password);
+    };
+
+    const isPasswordValid = computed(() => {
+      return Object.values(passwordHints.value).every(Boolean);
+    });
 
     const registerUser = async () => {
       groupError.value = false;
@@ -149,14 +178,33 @@ export default {
         return;
       }
 
+      if (!isPasswordValid.value) {
+        message.value = 'Пароль не соответствует требованиям сложности';
+        isSuccess.value = false;
+        return;
+      }
+
       try {
         isLoading.value = true;
         message.value = '';
 
-        const response = await fetch('http://25.54.39.23:3000/api/register', {
+        // Хешируем пароль перед отправкой
+        const hashedPassword = CryptoJS.SHA256(formData.value.password).toString();
+
+        // Формируем тело запроса без confirmPassword
+        const registrationData = {
+          firstName: formData.value.firstName,
+          lastName: formData.value.lastName,
+          email: formData.value.email,
+          userType: formData.value.userType,
+          group: formData.value.group || null,
+          password: hashedPassword //  Отправляем хеш
+        };
+
+        const response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/register`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(formData.value)
+          body: JSON.stringify(registrationData)
         });
 
         if (response.ok) {
@@ -183,7 +231,9 @@ export default {
       passwordMismatch,
       isStudent,
       groupError,
-      registerUser
+      registerUser,
+      passwordHints,
+      validatePassword
     };
   }
 };
@@ -239,5 +289,19 @@ button:disabled {
 .success-message {
   color: #4CAF50;
   margin: 0.5rem 0;
+}
+
+.password-hints {
+  margin-top: 0.5rem;
+  font-size: 0.85em;
+}
+
+.password-hints p {
+  margin: 0;
+  color: #999;
+}
+
+.password-hints .valid {
+  color: green;
 }
 </style>

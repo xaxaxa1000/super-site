@@ -3,14 +3,14 @@
     <div class="form-container">
       <div class="panel panel-default">
         <div class="panel-heading position-relative">
-          <!-- Кнопка "Назад" с абсолютным позиционированием -->
+          <!-- Кнопка "Назад" -->
           <button
-              @click="$router.back()"
+              @click="$router.push('/home')"
               class="back-btn"
           >
-            Назад
+            ← Назад
           </button>
-          <!-- Заголовок по центру -->
+          <!-- Заголовок -->
           <h3 class="panel-title text-center">Вход</h3>
         </div>
         <div class="panel-body">
@@ -25,13 +25,13 @@
                   class="form-control"
                   placeholder="Введите email"
                   required
-              >
+              />
             </div>
 
             <!-- Пароль -->
             <div class="form-group text-left">
               <label for="password">Пароль</label>
-              <div class="input-group">
+              <div class="password-group">
                 <input
                     v-model="formData.password"
                     :type="showPassword ? 'text' : 'password'"
@@ -39,23 +39,21 @@
                     class="form-control"
                     placeholder="Введите пароль"
                     required
+                />
+                <button
+                    type="button"
+                    class="toggle-password"
+                    @click="showPassword = !showPassword"
                 >
-                <span class="input-group-btn">
-                  <button
-                      type="button"
-                      class="btn btn-default"
-                      @click="showPassword = !showPassword"
-                  >
-                    {{ showPassword ? 'Скрыть' : 'Показать' }}
-                  </button>
-                </span>
+                  {{ showPassword ? 'Скрыть' : 'Показать' }}
+                </button>
               </div>
             </div>
 
             <!-- Кнопка входа -->
             <button
                 type="submit"
-                class="btn btn-primary btn-block"
+                class="btn btn-primary btn-block mt-4"
                 :disabled="isLoading"
             >
               <span v-if="!isLoading">Войти</span>
@@ -63,7 +61,7 @@
             </button>
 
             <!-- Ссылки -->
-            <div class="text-center links">
+            <div class="text-center links mt-3">
               <router-link to="/register">Зарегистрироваться</router-link>
               <router-link to="/forgot-password">Забыли пароль?</router-link>
             </div>
@@ -75,6 +73,8 @@
 </template>
 
 <script>
+import CryptoJS from 'crypto-js'; // Импорт библиотеки
+
 export default {
   data() {
     return {
@@ -90,6 +90,9 @@ export default {
     async handleLogin() {
       try {
         this.isLoading = true;
+
+        // Хешируем пароль с помощью SHA-256
+        const hashedPassword = CryptoJS.SHA256(this.formData.password).toString();
         const response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/login`, {
           method: 'POST',
           headers: {
@@ -97,7 +100,7 @@ export default {
           },
           body: JSON.stringify({
             email: this.formData.email,
-            password: this.formData.password
+            password: hashedPassword // Отправляем хеш вместо оригинального пароля
           })
         });
 
@@ -122,57 +125,145 @@ export default {
 
 <style scoped>
 .viewport {
-  position: relative;
+  display: flex;
+  justify-content: center;
+  align-items: center;
   min-height: 100vh;
-  background-color: #f5f5f5;
+  background: linear-gradient(to bottom right, #e0f7fa, #ffffff);
+  padding: 20px;
 }
 
 .form-container {
-  position: absolute;
-  left: 50%;
-  top: 20%;
-  transform: translate(-50%, -50%);
   width: 100%;
-  max-width: 400px;
-  padding: 0 15px;
+  max-width: 420px;
 }
 
 .panel-default {
-  border-radius: 8px;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  border-radius: 12px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.1);
+  background-color: #ffffff;
+  overflow: hidden;
+  transition: box-shadow 0.3s ease;
+}
+
+.panel-default:hover {
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
 }
 
 .panel-heading {
-  padding: 15px;
+  padding: 20px;
+  background: linear-gradient(to right, #007bff, #0056b3);
+  color: white;
+  position: relative;
 }
 
 .panel-title {
   font-size: 24px;
-  font-weight: 500;
-  color: #333;
+  font-weight: 600;
+  margin: 0;
+  letter-spacing: 0.5px;
 }
 
-.btn-secondary {
-  background-color: #6c757d;
+.back-btn {
+  position: absolute;
+  left: 15px;
+  top: 15px;
+  background: rgba(255, 255, 255, 0.2);
   color: white;
   border: none;
-  padding: 5px 10px;
-  border-radius: 4px;
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 14px;
   cursor: pointer;
+  transition: background 0.3s ease;
 }
 
-.btn-secondary:hover {
-  background-color: #5a6268;
+.back-btn:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.panel-body {
+  padding: 30px 20px 40px; /* больше нижнего отступа */
 }
 
 .form-control {
-  border-radius: 4px;
-  border: 1px solid #ddd;
+  border-radius: 6px;
+  border: 1px solid #ccc;
+  padding: 10px 12px;
+  font-size: 15px;
+  transition: border-color 0.3s ease;
+}
+.password-group {
+  display: flex;
+  position: relative;
+}
+
+.password-group .form-control {
+  flex: 1;
+  border-radius: 6px 0 0 6px;
+  border-right: none;
+}
+
+.toggle-password {
+  background-color: #f1f1f1;
+  border: 1px solid #ccc;
+  border-left: none;
+  border-radius: 0 6px 6px 0;
+  color: #555;
+  cursor: pointer;
+  padding: 10px 15px;
+  transition: background-color 0.3s ease;
+  white-space: nowrap;
+}
+
+.toggle-password:hover {
+  background-color: #e0e0e0;
+}
+
+/* Для фокусировки - стилизация всей группы */
+.password-group:focus-within {
+  box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
+  border-radius: 6px;
+}
+
+.form-control:focus {
+  border-color: #007bff;
+  box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
 }
 
 .input-group-btn .btn {
-  border-radius: 0 4px 4px 0;
-  border-left: 0;
+  display: flex;
+  border-radius: 0 6px 6px 0;
+  border-left: none;
+  background-color: #f1f1f1;
+  color: #555;
+  transition: background-color 0.3s ease;
+}
+
+.input-group-btn .btn:hover {
+  background-color: #e0e0e0;
+}
+
+.btn-primary {
+  background: linear-gradient(to right, #007bff, #0056b3);
+  border: none;
+  color: white;
+  padding: 12px;
+  font-size: 16px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.3s ease, transform 0.2s ease;
+}
+
+.btn-primary:hover {
+  background: linear-gradient(to right, #0069d9, #004080);
+  transform: scale(1.03);
+}
+
+.btn-primary:disabled {
+  background: #ccc;
+  cursor: not-allowed;
+  transform: none;
 }
 
 .links {
@@ -180,32 +271,15 @@ export default {
 }
 
 .links a {
-  color: #337ab7;
+  color: #007bff;
   text-decoration: none;
   margin: 0 10px;
+  font-size: 14px;
+  transition: color 0.3s ease;
 }
 
 .links a:hover {
+  color: #0056b3;
   text-decoration: underline;
-}
-
-.btn-primary {
-  background-color: #337ab7;
-  border-color: #2e6da4;
-}
-
-.btn-primary:hover {
-  background-color: #286090;
-  border-color: #204d74;
-}
-
-@media (max-width: 576px) {
-  .panel-heading .d-flex {
-    flex-direction: column;
-    align-items: flex-start;
-  }
-  .panel-title {
-    margin-top: 10px;
-  }
 }
 </style>

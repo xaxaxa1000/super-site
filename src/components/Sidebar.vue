@@ -2,7 +2,7 @@
   <aside class="sidebar">
     <nav>
       <router-link to="/home">Главная</router-link>
-      <router-link to="/applicant">Абитурьенту</router-link>
+      <router-link to="/applicant">Абитуриенту</router-link>
       <!-- Другие ссылки -->
     </nav>
   </aside>

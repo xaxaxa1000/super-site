@@ -8,6 +8,9 @@ const nodemailer = require('nodemailer');
 const uuidv4 = require('uuid').v4; // Исправленный импорт
 require('dotenv').config(); // Для загрузки переменных окружения
 const crypto = require('crypto');
+const https = require('https');
+const fs = require('fs');
+
 
 const app = express();
 
@@ -43,9 +46,12 @@ const authenticateToken = async (req, res, next) => {
 };
 const allowedOrigins = [
   'http://localhost:5173',
+  'https://localhost:5173',
   'http://25.54.39.23:5173', // Добавьте ваш IP
+  'https://25.54.39.23:5173',
   'http://localhost:3000', // Бэкенд,
-  'http://25.54.39.23:3000' // Бэкенд
+  'http://25.54.39.23:3000', // Бэкенд
+  'https://25.54.39.23:3000' // Бэкенд
 ];
 
 // Настройка CORS и middleware остаются без изменений
@@ -576,22 +582,26 @@ app.use((req, res) => {
   res.status(404).json({ message: 'Route not found', path: req.originalUrl });
 });
 
-// Централизованная обработка ошибок
 app.use((err, req, res, next) => {
   console.error(`[${new Date().toISOString()}] Global Error Handler:`, err);
   res.status(500).json({
     message: 'Internal server error',
     error: process.env.NODE_ENV === 'development' ? err : {},
-
   });
 });
 
 // Запуск сервера
 const PORT = process.env.PORT || 3000;
-app.listen(PORT,'0.0.0.0', () => {
+
+const options = {
+  key: fs.readFileSync(process.env.SSL_KEY_PATH),
+  cert: fs.readFileSync(process.env.SSL_CERT_PATH)
+};
+
+https.createServer(options, app).listen(PORT, '0.0.0.0', () => {
   console.log('--------------------------------------------------');
   console.log(`[${new Date().toISOString()}] Server started`);
   console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
-  console.log(`Listening on: http://localhost:${PORT}`);
+  console.log(`Listening on: https://localhost:${PORT}`);
   console.log('--------------------------------------------------');
 });
